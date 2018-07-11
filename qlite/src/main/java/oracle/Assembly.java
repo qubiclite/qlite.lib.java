@@ -164,6 +164,13 @@ public class Assembly {
 
     }
 
+    /**
+     * @return amount of oracles in the assembly
+     * */
+    public int size() {
+        return oracleReaders.size();
+    }
+
     protected int[] getRatings() {
         return ratings == null ? new int[oracleReaders.size()] : ratings;
     }

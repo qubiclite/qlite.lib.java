@@ -145,14 +145,16 @@ public class OracleWriter {
      * @return TRUE = successfully made it into assembly, FALSE = did not make it into assembly
      * */
     public boolean assemble() {
-        ArrayList<String> assemblyRoots = qubicReader.getAssemblyList();
 
-        if(assemblyRoots != null && assemblyRoots.contains(getID())) {
-            assembly.addOracles(assemblyRoots);
-            return true;
-        }
+        ArrayList<String> oracleIDs = qubicReader.getAssemblyList();
 
-        return false;
+        if(oracleIDs == null || !oracleIDs.contains(getID()))
+            return false;
+
+        if(assembly.size() == 0)
+            assembly.addOracles(oracleIDs);
+
+        return true;
     }
 
     /**

@@ -29,10 +29,14 @@ public class OracleManager extends Thread {
      * Runs the oracle life cycle synchronously as opposted to start().
      * */
     public void startSynchronous() {
-        ow.apply();
-        takeABreak(ow.getQubicReader().getExecutionStart() - getUnixTimeStamp());
-        if(ow.assemble())
+        if(ow.getQubicReader().getExecutionStart() > getUnixTimeStamp()) {
+            ow.apply();
+            takeABreak(ow.getQubicReader().getExecutionStart() - getUnixTimeStamp());
+        }
+
+        if(ow.assemble()) {
             runEpochs();
+        }
     }
 
     /**
