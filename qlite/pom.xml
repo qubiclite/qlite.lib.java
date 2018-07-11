@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.qubiclite</groupId>
         <artifactId>qlite.lib.java</artifactId>
-        <version>0.1</version>
+        <version>0.2-SNAPSHOT</version>
     </parent>
 
     <name>QLite : Library</name>
@@ -31,6 +31,12 @@
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-core</artifactId>
             <version>2.10.0</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>
