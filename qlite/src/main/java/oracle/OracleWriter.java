@@ -9,6 +9,7 @@ import qubic.QubicReader;
 import oracle.statements.HashStatement;
 import oracle.statements.ResultStatement;
 import tangle.TangleAPI;
+import tangle.TryteTool;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -35,6 +36,7 @@ public class OracleWriter {
 
     private int epochIndex;
     private String epochResult;
+    private String epochNonce;
     private String name = "ql-node";
 
     private final LinkedList<OracleListener> oracleListeners = new LinkedList<>();
@@ -93,9 +95,10 @@ public class OracleWriter {
         }
 
         this.epochIndex = epochIndex;
+        this.epochNonce = genNonce();
         this.epochResult = calcResult();
 
-        String hash = ResultHasher.hash(getID(), epochResult);
+        String hash = ResultHasher.hash(epochNonce, epochResult);
         int[] ratings = assembly.getRatings();
         HashStatement hashEpoch = new HashStatement(epochIndex, hash, ratings);
 
@@ -112,7 +115,7 @@ public class OracleWriter {
         assembly.fetchEpoch(true, epochIndex);
 
         //if(epochIndex > 0) assembly.determineQuorumBasedResult(epochIndex-1);
-        ResultStatement resultEpoch = new ResultStatement(epochIndex, ""+epochResult);
+        ResultStatement resultEpoch = new ResultStatement(epochIndex, ""+epochResult, epochNonce);
         resultStream.publish(epochIndex+1, resultEpoch.toJSON()); // +1 because epoch #0 has address …999A not …9999
     }
 
@@ -155,6 +158,13 @@ public class OracleWriter {
             assembly.addOracles(oracleIDs);
 
         return true;
+    }
+
+    /**
+     * @return a random String used as nonce
+     * */
+    private String genNonce() {
+        return TryteTool.generateRandom(30);
     }
 
     /**

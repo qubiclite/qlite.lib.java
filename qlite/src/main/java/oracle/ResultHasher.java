@@ -20,10 +20,10 @@ public class ResultHasher {
 
     /**
      * Creates hash for HashStatement.
-     * @param oracleID IAMStream id of oracle publishing the HashStatement
+     * @param salt salt (a random nonce to prevent rainbow tables)
      * @param result result string for subsequent ResultStatement
      **/
-    public static String hash(String oracleID, String result) {
-        return new String(Hex.encode(digest.digest((oracleID+result).getBytes(StandardCharsets.US_ASCII))));
+    public static String hash(String salt, String result) {
+        return new String(Hex.encode(digest.digest((salt+result).getBytes(StandardCharsets.US_ASCII))));
     }
 }

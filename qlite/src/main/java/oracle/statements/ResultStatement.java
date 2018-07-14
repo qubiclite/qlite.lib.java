@@ -17,6 +17,7 @@ public class ResultStatement extends Statement {
 
     private static final String CONTENT_TYPE = "result";
 
+    private final String nonce;
     private final String result;
     private HashStatement hashEpoch;
 
@@ -33,17 +34,20 @@ public class ResultStatement extends Statement {
         // determine statement attributes
         int epochIndex = obj.getInt(TangleJSONConstants.STATEMENT_EPOCH_INDEX);
         String result = obj.getString(TangleJSONConstants.RESULT_STATEMENT_RESULT);
+        String nonce = obj.getString(TangleJSONConstants.RESULT_STATEMENT_NONCE);
 
-        return new ResultStatement(epochIndex, result);
+        return new ResultStatement(epochIndex, result, nonce);
     }
 
     /**
      * @param epochIndex index of epoch in which this statement occured
      * @param result     result the oracle calculated for this particular epoch
+     * @param nonce      random value used as salt during the hash creation of the HashStatement.
      * */
-    public ResultStatement(int epochIndex, String result) {
+    public ResultStatement(int epochIndex, String result, String nonce) {
         super(epochIndex);
         this.result = result;
+        this.nonce = nonce;
     }
 
     @Override
@@ -63,9 +67,15 @@ public class ResultStatement extends Statement {
     /**
      * Checks whether the associated HashStatement has been set (this requires it to be
      * published in time) and contains the correct hash.
-     * @param oracleID id of oracle that published this statement
      * */
-    public boolean isHashStatementValid(String oracleID) {
-        return hashEpoch != null && hashEpoch.getContent().equals(ResultHasher.hash(oracleID, result));
+    public boolean isHashStatementValid() {
+        return hashEpoch != null && hashEpoch.getContent().equals(ResultHasher.hash(nonce, result));
+    }
+
+    @Override
+    public JSONObject toJSON() {
+        JSONObject o = super.toJSON();
+        o.put(TangleJSONConstants.RESULT_STATEMENT_NONCE, nonce);
+        return o;
     }
 }

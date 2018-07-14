@@ -90,7 +90,7 @@ public class Assembly {
             oracleReader.readStatement(true, epochIndex);
             ResultStatement resStat = (ResultStatement)oracleReader.readStatement(false, epochIndex);
 
-            if(resStat == null || !resStat.isHashStatementValid(oracleReader.getID())) continue;
+            if(resStat == null || !resStat.isHashStatementValid()) continue;
             String result = resStat.getContent();
 
             // add vote to HashMap
@@ -153,7 +153,7 @@ public class Assembly {
             // neutral rating for qnode.statements that were ignored in the last epoch
             // due to not being existent or following an invalid hash statement
             ResultStatement resultEpoch = (ResultStatement)oracleReader.readStatement(false, epochIndex);
-            if(resultEpoch == null || !resultEpoch.isHashStatementValid(oracleReader.getID())) {
+            if(resultEpoch == null || !resultEpoch.isHashStatementValid()) {
                 ratings[i] = 0;
                 continue;
             }

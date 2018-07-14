@@ -17,6 +17,7 @@ public class TangleJSONConstants {
     public static final String HASH_STATEMENT_HASH = "hash";
     public static final String HASH_STATEMENT_RATINGS = "ratings";
     public static final String RESULT_STATEMENT_RESULT = "result";
+    public static final String RESULT_STATEMENT_NONCE = "nonce";
 
     // IAMStream
     public static final String TANGLE_PUBLISHER_CONTENT = "content";
