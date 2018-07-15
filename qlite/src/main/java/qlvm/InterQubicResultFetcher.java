@@ -31,6 +31,11 @@ public class InterQubicResultFetcher {
         } else {
             QubicReader qubicReader = new QubicReader(qubicId);
             ArrayList<String> assemblyList = qubicReader.getAssemblyList();
+
+            // no assembly transaction
+            if(assemblyList == null)
+                return new QuorumBasedResult(0, 0, null);
+
             assembly = new Assembly(qubicReader);
             assembly.addOracles(assemblyList);
             assemblies.put(qubicId, assembly);
