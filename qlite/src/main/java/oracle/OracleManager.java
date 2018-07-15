@@ -10,25 +10,32 @@ import qubic.QubicReader;
  * an Oracle. The OracleManager is the very core of a q-node.
  * Use start() for asynchronous, startSynchronous() for synchronous execution.
  * */
-public class OracleManager extends Thread {
+public class OracleManager {
 
     private final OracleWriter ow;
-    private boolean stop = false;
+    private State state;
 
     public OracleManager(OracleWriter ow) {
         this.ow = ow;
         this.ow.setManager(this);
     }
 
-    @Override
-    public void run() {
-        startSynchronous();
+    public void start() {
+        new Thread() {
+            @Override
+            public void run() {
+                startSynchronous();
+            }
+        }.start();
     }
 
     /**
      * Runs the oracle life cycle synchronously as opposted to start().
      * */
     public void startSynchronous() {
+
+        state = State.PRE_EXECUTION;
+
         if(ow.getQubicReader().getExecutionStart() > getUnixTimeStamp()) {
             ow.apply();
             takeABreak(ow.getQubicReader().getExecutionStart() - getUnixTimeStamp());
@@ -36,6 +43,8 @@ public class OracleManager extends Thread {
 
         if(ow.assemble()) {
             runEpochs();
+        } else {
+            state = State.ABORTED;
         }
     }
 
@@ -46,12 +55,17 @@ public class OracleManager extends Thread {
     public void runEpochs() {
         final QubicReader qubic = ow.getQubicReader();
 
+        // not part of assembly
+        if(!qubic.getAssemblyList().contains(ow.getID()))
+            return;
+
         final long executionStart = qubic.getExecutionStart();
         final int hashPeriodDuration = qubic.getHashPeriodDuration();
         final int resultPeriodDuration = qubic.getResultPeriodDuration();
         final int epochDuration = hashPeriodDuration + resultPeriodDuration;
 
-        while(!stop) {
+        state = State.RUNNING;
+        while(state != State.PAUSING) {
 
             final int e = determineEpochToRun();
             final long epochStart = executionStart + e * epochDuration;
@@ -64,6 +78,7 @@ public class OracleManager extends Thread {
             takeABreak(epochStart - getUnixTimeStamp() + hashPeriodDuration);
             ow.doResultStatement();
         }
+        state = State.PAUSED;
     }
 
     /**
@@ -82,6 +97,7 @@ public class OracleManager extends Thread {
 
         long timeRunning = getUnixTimeStamp() - executionStart;
 
+        // TODO base decision on runtime limit
         // skip running epoch if 30% of hash period is already over
         double relOverTime = (double)(timeRunning%epochDuration)/hashPeriodDuration;
         int skippedEpoches = relOverTime > 0.3 ? 1 : 0;
@@ -93,7 +109,7 @@ public class OracleManager extends Thread {
      * Stops runEpochs right after finishing the next epoch.
      * */
     public void terminate() {
-        stop = true;
+        state = State.PAUSING;
     }
 
     /**
@@ -108,6 +124,40 @@ public class OracleManager extends Thread {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    enum State {
+        PRE_EXECUTION, RUNNING, PAUSED, PAUSING, ABORTED
+    }
+
+    /**
+     * @return TRUE if oracle is creating epochs, FALSE otherwise
+     * */
+    public boolean isRunning() {
+        return state == State.RUNNING;
+    }
+
+    /**
+     * @return TRUE if oracle has been paused and is no longer creating epochs, FALSE otherwise
+     * */
+    public boolean isPaused() {
+        return state == State.PAUSED;
+    }
+
+    /**
+     * Aborted oracles are useless and can be deleted.
+     * If, for example, an oracle does not make it into the assembly, it is considered aborted.
+     * @return TRUE if oracle has been aborted, FALSE otherwise
+     * */
+    public boolean isAborted() {
+        return state == State.ABORTED;
+    }
+
+    /**
+     * @return current state as String
+     * */
+    public String getState() {
+        return state.name().toLowerCase();
     }
 
     /**
