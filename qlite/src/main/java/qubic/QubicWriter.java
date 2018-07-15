@@ -20,7 +20,7 @@ import java.util.ArrayList;
 public class QubicWriter {
 
     private final IAMPublisher publisher;
-    private final String applicationAddress = TryteTool.generateRandom(81);
+    private final String applicationAddress;
     private final int executionStart;
     private final int hashPeriodDuration, resultPeriodDuration, runTimeLimit;
     private final ArrayList<String> assembly = new ArrayList<>();
@@ -48,6 +48,7 @@ public class QubicWriter {
         this.hashPeriodDuration = hashPeriodDuration;
         this.resultPeriodDuration = resultPeriodDuration;
         this.runTimeLimit = runTimeLimit;
+        this.applicationAddress = TryteTool.generateRandom(81);
 
         state = QubicWriterState.PRE_ASSEMBLY_PHASE;
     }
@@ -66,6 +67,7 @@ public class QubicWriter {
         hashPeriodDuration = qr.getHashPeriodDuration();
         resultPeriodDuration = qr.getResultPeriodDuration();
         runTimeLimit = qr.getRunTimeLimit();
+        applicationAddress = qr.getApplicationAddress();
 
         state = determineState(qr);
     }
