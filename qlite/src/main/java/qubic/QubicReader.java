@@ -1,5 +1,6 @@
 package qubic;
 
+import constants.GeneralConstants;
 import constants.TangleJSONConstants;
 import org.apache.commons.lang3.StringUtils;
 import tangle.IAMReader;
@@ -96,6 +97,8 @@ public class QubicReader {
     public String getCode() {
         return qubicTx.getString(TangleJSONConstants.QUBIC_CODE);
     }
+
+    public String getVersion() { return qubicTx.getString(TangleJSONConstants.VERSION); }
 
     public int getExecutionStart() {
         return qubicTx.getInt(TangleJSONConstants.QUBIC_EXECUTION_START);
