@@ -173,4 +173,8 @@ public class TangleAPI {
             return -1;
         }
     }
+
+    public int getMWM() {
+        return mwm;
+    }
 }
