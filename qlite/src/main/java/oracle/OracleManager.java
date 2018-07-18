@@ -13,7 +13,7 @@ import qubic.QubicReader;
 public class OracleManager {
 
     private final OracleWriter ow;
-    private State state;
+    private State state = State.PAUSED;
 
     public OracleManager(OracleWriter ow) {
         this.ow = ow;
