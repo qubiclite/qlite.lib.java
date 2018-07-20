@@ -1,6 +1,7 @@
 package oracle;
 
 import constants.TangleJSONConstants;
+import exceptions.CorruptIAMStreamException;
 import qlvm.QLVM;
 import qubic.QubicWriter;
 import tangle.IAMPublisher;
@@ -45,7 +46,7 @@ public class OracleWriter {
      * Creates a new IAMStream identity for this oracle.
      * @param qubicReader qubic to be processed
      * */
-    public OracleWriter(QubicReader qubicReader) {
+    public OracleWriter(QubicReader qubicReader) throws CorruptIAMStreamException {
 
         this.qubicReader = qubicReader;
         assembly = new Assembly(qubicReader);

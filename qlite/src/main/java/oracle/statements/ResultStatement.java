@@ -1,7 +1,9 @@
 package oracle.statements;
 
 import constants.TangleJSONConstants;
+import exceptions.InvalidStatementException;
 import oracle.OracleWriter;
+import org.json.JSONException;
 import org.json.JSONObject;
 import oracle.ResultHasher;
 
@@ -26,15 +28,20 @@ public class ResultStatement extends Statement {
      * @param obj the JSONObject describing the ResultStatement
      * @return new ResultStatement created from the JSONObject
      * */
-    public static ResultStatement fromJSON(JSONObject obj) {
+    public static ResultStatement fromJSON(JSONObject obj) throws InvalidStatementException {
 
         if(obj == null) return null;
 
-        // TODO check if keys exist
-        // determine statement attributes
-        int epochIndex = obj.getInt(TangleJSONConstants.STATEMENT_EPOCH_INDEX);
-        String result = obj.getString(TangleJSONConstants.RESULT_STATEMENT_RESULT);
-        String nonce = obj.getString(TangleJSONConstants.RESULT_STATEMENT_NONCE);
+        int epochIndex;
+        String result, nonce;
+
+        try {
+            epochIndex = obj.getInt(TangleJSONConstants.STATEMENT_EPOCH_INDEX);
+            result = obj.getString(TangleJSONConstants.RESULT_STATEMENT_RESULT);
+            nonce = obj.getString(TangleJSONConstants.RESULT_STATEMENT_NONCE);
+        } catch (JSONException e) {
+            throw new InvalidStatementException(e.getClass().getName() + ": " + e.getMessage(), e);
+        }
 
         return new ResultStatement(epochIndex, result, nonce);
     }

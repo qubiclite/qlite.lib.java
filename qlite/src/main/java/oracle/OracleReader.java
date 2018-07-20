@@ -1,6 +1,8 @@
 package oracle;
 
 import constants.TangleJSONConstants;
+import exceptions.CorruptIAMStreamException;
+import exceptions.InvalidStatementException;
 import tangle.IAMReader;
 import org.json.JSONObject;
 import oracle.statements.HashStatement;
@@ -30,7 +32,7 @@ public class OracleReader {
      * Initializes TangleReaders for HashStatements and ResultStatements.
      * @param resultsRoot root of oracles result tangle stream
      * */
-    public OracleReader(String resultsRoot) {
+    public OracleReader(String resultsRoot)  throws CorruptIAMStreamException {
         iamResults = new IAMReader(resultsRoot);
 
         // reads oracle specification transaction to find root of HashStatement mam channel
@@ -44,7 +46,7 @@ public class OracleReader {
      * If the Statement has already been fetched before, it will just return the old one.
      * @param isHashStatement fetches HashStatement if TRUE, ResultStatement if FALSE
      * @param epoch epoch index for desired Statement
-     * @return the fetched Statement
+     * @return the fetched Statement, NULL if not existent or malformed
      * */
     protected Statement readStatement(boolean isHashStatement, int epoch) {
 
@@ -56,19 +58,26 @@ public class OracleReader {
 
         // read JSONObject from tangle stream
         JSONObject statObj = reader.read(epoch+1); // +1 because address for epoch #0 is ...999A, not 9999
+        if(statObj == null)
+            return null;
 
-        Statement newStat = isHashStatement ? HashStatement.fromJSON(statObj) : ResultStatement.fromJSON(statObj);
-        if(newStat != null) {
-            // accept HashStatement because order is correct (HashStatement needs to be received earlier than ResultStatement)
-            if(!isHashStatement)
-                ((ResultStatement)newStat).setHashEpoch(hashStatements.get(epoch));
+        Statement newStat;
 
-            // add to HashMap for future use
-            if(isHashStatement)
-                hashStatements.put(epoch, (HashStatement) newStat);
-            else
-                resultStatements.put(epoch, (ResultStatement) newStat);
+        try {
+            newStat = isHashStatement ? HashStatement.fromJSON(statObj) : ResultStatement.fromJSON(statObj);
+        } catch (InvalidStatementException e) {
+            return null;
         }
+
+        // accept HashStatement because order is correct (HashStatement needs to be received earlier than ResultStatement)
+        if(!isHashStatement)
+            ((ResultStatement)newStat).setHashEpoch(hashStatements.get(epoch));
+
+        // add to HashMap for future use
+        if(isHashStatement)
+            hashStatements.put(epoch, (HashStatement) newStat);
+        else
+            resultStatements.put(epoch, (ResultStatement) newStat);
         return  newStat;
     }
 

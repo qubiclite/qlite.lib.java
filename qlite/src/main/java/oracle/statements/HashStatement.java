@@ -1,7 +1,9 @@
 package oracle.statements;
 
 import constants.TangleJSONConstants;
+import exceptions.InvalidStatementException;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
@@ -26,15 +28,21 @@ public class HashStatement extends Statement {
      * @param obj the JSONObject describing the HashStatement
      * @return new HashStatement created from the JSONObject
      * */
-    public static HashStatement fromJSON(JSONObject obj) {
+    public static HashStatement fromJSON(JSONObject obj) throws InvalidStatementException {
 
         if(obj == null) return null;
 
-        // TODO check if keys exist
-        // determine statement attributes
-        int epochIndex = obj.getInt(TangleJSONConstants.STATEMENT_EPOCH_INDEX);
-        String hash = obj.getString(TangleJSONConstants.HASH_STATEMENT_HASH);
-        JSONArray ratingsArr = obj.getJSONArray(TangleJSONConstants.HASH_STATEMENT_RATINGS);
+        int epochIndex;
+        String hash;
+        JSONArray ratingsArr;
+
+        try {
+            epochIndex = obj.getInt(TangleJSONConstants.STATEMENT_EPOCH_INDEX);
+            hash = obj.getString(TangleJSONConstants.HASH_STATEMENT_HASH);
+            ratingsArr = obj.getJSONArray(TangleJSONConstants.HASH_STATEMENT_RATINGS);
+        } catch (JSONException e) {
+            throw new InvalidStatementException(e.getClass().getName() + ": " + e.getMessage(), e);
+        }
 
         // convert JSONArray -> int array
         int[] ratings = new int[ratingsArr.length()];

@@ -10,8 +10,10 @@ import jota.model.Transaction;
 import jota.model.Transfer;
 import jota.utils.TrytesConverter;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author microhash
@@ -94,18 +96,17 @@ public class TangleAPI {
     }
 
     /**
-     * Finds all transaction published to a certain address.
+     * Finds all transactions published to a certain address.
      * @param address the address to check
-     * @param convert convert the message trytes to ascii before returning?
-     * @return transaction messages of all transactions found
+     * @return hashes of found transactions
      * */
-    public String[] findTransactionsByAddress(String address, boolean convert) {
-        String[] addresses = {address};
+    public List<Transaction> findTransactionsByAddress(String address) {
+
         List<Transaction> transactions = null;
 
         while (transactions == null) {
             try {
-                transactions = api.findTransactionObjectsByAddresses(addresses);
+                transactions = api.findTransactionObjectsByAddresses(new String[] {address});
             } catch (ArgumentException e) {
                 e.printStackTrace();
                 return null;
@@ -115,21 +116,36 @@ public class TangleAPI {
             }
         }
 
-        String[] transactionData = new String[transactions.size()];
+        return transactions;
+    }
+
+    /**
+     * Reads the messages of all transaction published to a certain address.
+     * @param address the address to check
+     * @param convert convert the message trytes to ascii before returning?
+     * @return transaction messages mapped by transaction hash of all transactions found
+     * */
+    public Map<String, String> readTransactionsByAddress(String address, boolean convert) {
+        List<Transaction> transactions = findTransactionsByAddress(address);
+
+        Map<String, String> map = new HashMap<>();
+
         for(int i = 0; i < transactions.size(); i++) {
             String trytes = transactions.get(i).getSignatureFragments();
             trytes = trytes.split("99")[0];
             if(trytes.length()%2 == 1) trytes += "9";
-            transactionData[i] = convert ? TrytesConverter.toString(trytes) : trytes;
+            String message = convert ? TrytesConverter.toString(trytes) : trytes;
+
+            map.put(transactions.get(i).getHash(), message);
         }
-        return transactionData;
+        return map;
     }
 
     /**
      * Finds the transaction with a certain hash
      * @param hash    the hash of the requested transaction
      * @param convert convert the message trytes to ascii before returning?
-     * @return transaction messages of the transaction found
+     * @return transaction messages of the transaction found, NULL if not found
      * */
     public String findTransactionByHash(String hash, boolean convert) {
         String[] hashes = {hash};
@@ -146,6 +162,10 @@ public class TangleAPI {
                 System.err.println("NullPointerException in file " + ste.getFileName() + " at line #" + ste.getLineNumber());
             }
         }
+
+        // transaction not found
+        if(transactions.get(0).getHash().equals("999999999999999999999999999999999999999999999999999999999999999999999999999999999"))
+            return null;
 
         String trytes = transactions.get(0).getSignatureFragments();
         // remove end

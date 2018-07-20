@@ -1,6 +1,8 @@
 package qubic;
 
+import constants.GeneralConstants;
 import constants.TangleJSONConstants;
+import exceptions.CorruptIAMStreamException;
 import exceptions.InvalidQubicTransactionException;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
@@ -42,21 +44,35 @@ public class QubicReader {
      * */
     public QubicReader(String id) throws InvalidQubicTransactionException {
         this.id = id;
-        reader = new IAMReader(id);
+
+        try {
+            reader = new IAMReader(id);
+        } catch (CorruptIAMStreamException e) {
+            throw new InvalidQubicTransactionException(e.getMessage(), e);
+        }
+
         JSONObject qubicTx = reader.read(0);
+
+        if(qubicTx == null)
+            throw new InvalidQubicTransactionException("qubic transaction not found", null);
+
         QubicTransactionVerificator.verify(qubicTx);
 
         // init attributes
         try {
             version              = qubicTx.getString(TangleJSONConstants.VERSION);
+
+            if(!version.equals(GeneralConstants.VERSION))
+                throw new InvalidQubicTransactionException("version declared in qubic does not match qlri version", null);
+
             code                 = qubicTx.getString(TangleJSONConstants.QUBIC_CODE);
             applicationAddress   = qubicTx.getString(TangleJSONConstants.QUBIC_APPLICATION_ADDRESS);
             executionStart       = qubicTx.getInt(TangleJSONConstants.QUBIC_EXECUTION_START);
             hashPeriodDuration   = qubicTx.getInt(TangleJSONConstants.QUBIC_HASH_PERIOD_DURATION);
             resultPeriodDuration = qubicTx.getInt(TangleJSONConstants.QUBIC_RESULT_PERIOD_DURATION);
-            runtimeLimit         = qubicTx.getInt(TangleJSONConstants.QUBIC_CODE);
+            runtimeLimit         = qubicTx.getInt(TangleJSONConstants.QUBIC_RUN_TIME_LIMIT);
         } catch (JSONException e) {
-            throw new InvalidQubicTransactionException("failed to parse qubic meta data", e);
+            throw new InvalidQubicTransactionException("failed to parse qubic meta data: " + e.getMessage(), e);
         }
     }
 
@@ -78,6 +94,8 @@ public class QubicReader {
     private void fetchAssemblyTx() {
         if(assemblyList == null) {
             JSONObject assemblyTx = reader.read(1);
+            if(assemblyTx == null)
+                return;
 
             assemblyList = new ArrayList<>();
 
@@ -105,7 +123,7 @@ public class QubicReader {
      * */
     public static ArrayList<QubicReader> findQubics() {
         ArrayList<QubicReader> qubics = new ArrayList<>();
-        String[] recentPromotions = TangleAPI.getInstance().findTransactionsByAddress(TryteTool.buildCurrentQubicPromotionAddress(), false);
+        String[] recentPromotions = TangleAPI.getInstance().readTransactionsByAddress(TryteTool.buildCurrentQubicPromotionAddress(), false).values().toArray(new String[0]);
         for(String recentPromotion : recentPromotions) {
             qubics.add(new QubicReader(StringUtils.rightPad(recentPromotion, 81, '9')));
         }
@@ -116,7 +134,7 @@ public class QubicReader {
 
         long timeRunning = System.currentTimeMillis()/1000 - getExecutionStart();
         int epochDuration = getEpochDuration();
-        return (int)Math.floor(timeRunning / epochDuration)-1;
+        return Math.max((int)Math.floor(timeRunning / epochDuration)-1, -1);
     }
 
     public String getID() {

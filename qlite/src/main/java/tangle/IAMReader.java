@@ -1,10 +1,15 @@
 package tangle;
 
+import constants.GeneralConstants;
 import constants.TangleJSONConstants;
+import exceptions.CorruptIAMStreamException;
+import exceptions.IllegalIAMStreamLengthException;
+import exceptions.IncompleteIAMChainException;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Iterator;
+import java.util.Map;
 
 /**
  * @author microhash
@@ -19,15 +24,17 @@ public class IAMReader extends IAMStream {
     private final String pubKeyString;
     private final Signer signer = new Signer();
 
-    private int index = 0;
-
     /**
      * Creates the IAMReader for a specific IAMPublisher ID. Fetches the according public Key.
      * @param id the id of the IAMStream to read
      * */
-    public IAMReader(String id) {
+    public IAMReader(String id) throws CorruptIAMStreamException {
         this.id = id;
-        pubKeyString = TangleAPI.getInstance().findTransactionByHash(id, false);
+        try {
+            pubKeyString = TangleAPI.getInstance().findTransactionByHash(id, false);
+        } catch (IncompleteIAMChainException e) {
+            throw new CorruptIAMStreamException("the iam stream root message chain could not be read completely ("+e.getMessage()+")", e);
+        }
     }
 
     /**
@@ -36,14 +43,19 @@ public class IAMReader extends IAMStream {
      * @return the read JSONObject, NULL if no transaction with a valid signature found.
      * */
     public JSONObject read(int index) {
-        String[] txs;
 
         String address = buildAddress(index);
-        txs = TangleAPI.getInstance().findTransactionsByAddress(address, true);
+        Map<String, String> txMessages = TangleAPI.getInstance().readTransactionsByAddress(address, true);
 
-        for(String tx : txs) {
-            String data = readDataInFragments(tx);
+        for(String hash : txMessages.keySet()) {
+            String data;
             JSONObject container;
+
+            try {
+                data = readDataInFragments(hash, txMessages.get(hash), 0);
+            } catch (IncompleteIAMChainException e) {
+                continue;
+            }
 
             try {
                 container = new JSONObject(data);
@@ -55,9 +67,9 @@ public class IAMReader extends IAMStream {
             String signature = container.getString(TangleJSONConstants.TANGLE_PUBLISHER_SIGNATURE);
             JSONObject content = container.getJSONObject(TangleJSONConstants.TANGLE_PUBLISHER_CONTENT);
 
-            if(signer.verify(pubKeyString, signature.toString(), content.toString()))
+            if(signer.verify(pubKeyString, signature, content.toString()))
                 return content;
-            System.err.println("INVALID SIGNATURE: " + tx.toString());
+            System.err.println("INVALID SIGNATURE: " + hash);
         }
 
         return null;
@@ -65,29 +77,34 @@ public class IAMReader extends IAMStream {
 
     /**
      * Reads the full message distributed across multiple transactions via a chain of linked transactions.
-     * @param baseTxMsg the ascii message of any transaction in the chain
+     * @param baseTxHash the hash of the first transaction in the chain (required for IllegalIAMStreamLengthException())
+     * @param lastTxMsg  the message of the last transaction in the chain
+     * @param depth      depth in the current transaction chain (0 for initial call, each recursive calls adds 1),
+     *                   allows to prevent maliciously long spam chains
      * @return the concatenated message of all following transactions following the base transaction (including that one)
      * */
-    private String readDataInFragments(String baseTxMsg) {
+    private String readDataInFragments(String baseTxHash, String lastTxMsg, int depth) {
 
-        // TODO abort if too long
+        if(depth > GeneralConstants.IAM_MAX_TRANSACTION_CHAIN_LENGTH)
+            throw new IllegalIAMStreamLengthException(baseTxHash);
 
         // end reached
-        if(!baseTxMsg.endsWith(">"))
-            return baseTxMsg;
+        if(!lastTxMsg.endsWith(">"))
+            return lastTxMsg;
 
         // TODO validate nextHash
-        String nextHash = baseTxMsg.substring(baseTxMsg.length()-82, baseTxMsg.length()-1);
-        String content = baseTxMsg.substring(0, baseTxMsg.length()-82);
-        String sequel = readDataInFragments(TangleAPI.getInstance().findTransactionByHash(nextHash, true));
-        return content + sequel;
+        String nextTxHash = lastTxMsg.substring(lastTxMsg.length()-82, lastTxMsg.length()-1);
+        String nextTxMsg = TangleAPI.getInstance().findTransactionByHash(nextTxHash, true);
+
+        if(nextTxMsg == null)
+            throw new IncompleteIAMChainException(nextTxHash);
+
+        String lastTxContent = lastTxMsg.substring(0, lastTxMsg.length()-82);
+        String sequel = readDataInFragments(baseTxHash, nextTxMsg, depth+1);
+        return lastTxContent + sequel;
     }
 
     public String getID() {
         return id;
-    }
-
-    public int getNextIndex() {
-        return index;
     }
 }

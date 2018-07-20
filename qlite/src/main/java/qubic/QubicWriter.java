@@ -86,7 +86,7 @@ public class QubicWriter {
     public void publishQubicTx() {
 
         if(state != QubicWriterState.PRE_ASSEMBLY_PHASE)
-            throw new IllegalStateException("qubic transaction can only be published if qubic is in state: PRE_ASSEMBLY_PHASE");
+            throw new IllegalStateException("qubic transaction can only be published if qubic is in state PRE_ASSEMBLY_PHASE, but qubic is in state " + state.name());
 
         // generate json specification of qubic request
         JSONObject qubicTx = new JSONObject();
@@ -121,7 +121,7 @@ public class QubicWriter {
     public void publishAssemblyTx() {
 
         if(state != QubicWriterState.ASSEMBLY_PHASE)
-            throw new IllegalStateException("assembly transaction can only be published if qubic is in state: ASSEMBLY_PHASE");
+            throw new IllegalStateException("assembly transaction can only be published if qubic is in state ASSEMBLY_PHASE, but qubic is in state " + state.name());
 
         if(System.currentTimeMillis()/1000 >= executionStart)
             throw new IllegalStateException("assembly tx aborted: the execution phase would have already started, it is too late to publish the assembly tx now");
@@ -149,7 +149,7 @@ public class QubicWriter {
      * private field, useable by handleApplications()
      * */
     public void fetchApplications() {
-        String[] applicationTransactions = TangleAPI.getInstance().findTransactionsByAddress(applicationAddress, true);
+        String[] applicationTransactions = TangleAPI.getInstance().readTransactionsByAddress(applicationAddress, true).values().toArray(new String[0]);
         applications = new JSONObject[applicationTransactions.length];
         for(int i = 0; i < applicationTransactions.length; i++) {
             applications[i] = new JSONObject(applicationTransactions[i]); // TODO check if valid JSONObject
