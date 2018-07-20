@@ -18,32 +18,65 @@ public class InterQubicResultFetcher {
 
     /**
      * Fetches the QuorumBasedResult from any qubic.
-     * @param qubicId tangle stream id of qubic
+     * @param qubicId     iam stream id of qubic
      * @param epochIndex  index of the epoch of which the result shall be determined
      * @return the fetched QuorumBasedResult
      * */
     public static QuorumBasedResult fetchResult(String qubicId, int epochIndex) {
 
-        Assembly assembly;
-
-        if(assemblies.containsKey(qubicId)) {
-            assembly = assemblies.get(qubicId);
-        } else {
-            QubicReader qubicReader = new QubicReader(qubicId);
-            ArrayList<String> assemblyList = qubicReader.getAssemblyList();
-
-            // no assembly transaction
-            if(assemblyList == null)
-                return new QuorumBasedResult(0, 0, null);
-
-            assembly = new Assembly(qubicReader);
-            assembly.addOracles(assemblyList);
-            assemblies.put(qubicId, assembly);
-        }
+        Assembly assembly = getAssembly(qubicId);
 
         assembly.fetchEpoch(true, epochIndex);
         assembly.fetchEpoch(false, epochIndex);
 
         return assembly.determineQuorumBasedResult(epochIndex);
+    }
+    /**
+     * Fetches the QuorumBasedResult from any qubic.
+     * @param qubicReader QubicReader for qubic to fetch from
+     * @param epochIndex  index of the epoch of which the result shall be determined
+     * @return the fetched QuorumBasedResult
+     * */
+    public static QuorumBasedResult fetchResult(QubicReader qubicReader, int epochIndex) {
+
+        Assembly assembly = getAssembly(qubicReader);
+
+        assembly.fetchEpoch(true, epochIndex);
+        assembly.fetchEpoch(false, epochIndex);
+
+        return assembly.determineQuorumBasedResult(epochIndex);
+    }
+
+    private static Assembly getAssembly(String qubicID) {
+
+        Assembly assembly;
+
+        if(assemblies.containsKey(qubicID)) {
+            assembly = assemblies.get(qubicID);
+        } else {
+            QubicReader qr = new QubicReader(qubicID);
+            ArrayList<String> assemblyList = qr.getAssemblyList();
+            assembly = new Assembly(qr);
+            assembly.addOracles(assemblyList);
+            assemblies.put(qr.getID(), assembly);
+        }
+
+        return assembly;
+    }
+
+    private static Assembly getAssembly(QubicReader qr) {
+
+        Assembly assembly;
+
+        if(assemblies.containsKey(qr.getID())) {
+            assembly = assemblies.get(qr.getID());
+        } else {
+            ArrayList<String> assemblyList = qr.getAssemblyList();
+            assembly = new Assembly(qr);
+            assembly.addOracles(assemblyList);
+            assemblies.put(qr.getID(), assembly);
+        }
+
+        return assembly;
     }
 }

@@ -34,8 +34,9 @@ public class Assembly {
      * @param assemblyRoots the oracle ids of each respective oracle to add
      * */
     public void addOracles(ArrayList<String> assemblyRoots) {
-        for(String assemblyRoot : assemblyRoots)
-            oracleReaders.add(new OracleReader(assemblyRoot));
+        if(assemblyRoots != null)
+            for(String assemblyRoot : assemblyRoots)
+                oracleReaders.add(new OracleReader(assemblyRoot));
     }
 
     /**
@@ -44,6 +45,10 @@ public class Assembly {
      * @return quorum based result
      * */
     public QuorumBasedResult determineQuorumBasedResult(int epochIndex) {
+
+        // empty assembly
+        if(oracleReaders.size() == 0)
+            return new QuorumBasedResult(0, 0, null);
 
         // if epoch is ongoing or hasn't even started yet
         if(epochIndex < 0 || epochIndex > qr.lastCompletedEpoch())
