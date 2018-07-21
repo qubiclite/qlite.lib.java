@@ -23,7 +23,7 @@ import java.util.Map;
  * */
 public class TangleAPI {
 
-    private static TangleAPI instance = new TangleAPI("https", "nodes.testnet.iota.org", "443", 9);
+    private static TangleAPI instance = new TangleAPI("https", "nodes.testnet.iota.org", "443", 9, false);
 
     private static final String TAG = "QLITE9999999999999999999999";
 
@@ -41,8 +41,8 @@ public class TangleAPI {
      * @param port     port of node api (e.g. 14265 or 443)
      * @param mwm      min weight magnitude (14 for mainnet, 9 for testnet)
      * */
-    public static void changeNode(String protocol, String host, String port, int mwm) {
-        instance = new TangleAPI(protocol, host, port, mwm);
+    public static void changeNode(String protocol, String host, String port, int mwm, boolean localPow) {
+        instance = new TangleAPI(protocol, host, port, mwm, localPow);
     }
 
     /**
@@ -51,14 +51,19 @@ public class TangleAPI {
      * @param host     host name of node api address (e.g. node.example.org)
      * @param port     port of node api (e.g. 14265 or 443)
      * @param mwm      min weight magnitude (14 for mainnet, 9 for testnet)
+     * @param localPow TRUE: perform pow locally, FALSE: outsource pow to remote node
      * */
-    private TangleAPI(String protocol, String host, String port, int mwm) {
-        api = new IotaAPI.Builder()
+    private TangleAPI(String protocol, String host, String port, int mwm, boolean localPow) {
+
+        IotaAPI.Builder b = new IotaAPI.Builder()
                 .protocol(protocol)
                 .host(host)
-                .port(port)
-                .localPoW(new PearlDiverLocalPoW())
-                .build();
+                .port(port);
+
+        if(localPow)
+            b = b.localPoW(new PearlDiverLocalPoW());
+
+        api = b.build();
         this.mwm = mwm;
     }
 
