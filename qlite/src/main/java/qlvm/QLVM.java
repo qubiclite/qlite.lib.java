@@ -133,7 +133,6 @@ public class QLVM {
             JSONObject o = new JSONObject();
             o.put("error_type", e.getClass().getName());
             o.put("error_message", e.getMessage());
-            e.printStackTrace();
 
             StringBuilder stackTrace = new StringBuilder();
             for(int i = 0; i < e.getStackTrace().length; i++)
