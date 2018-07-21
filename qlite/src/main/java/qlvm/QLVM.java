@@ -54,6 +54,7 @@ public class QLVM {
     private final OracleWriter oracleWriter;
 
     private boolean interrupted = false;
+    private final boolean inTestMode;
 
     /**
      * Runs code in the context of a specific OracleWriter.
@@ -97,6 +98,7 @@ public class QLVM {
         this.oracleWriter = oracleWriter;
         variables.put("epoch", oracleWriter.getEpochIndex()+"");
         variables.put("qubic", "'"+oracleWriter.getQubicReader().getID()+"'");
+        inTestMode = false;
     }
 
     /**
@@ -106,6 +108,7 @@ public class QLVM {
         this.oracleWriter = null;
         variables.put("epoch", ""+epoch);
         variables.put("qubic", null);
+        inTestMode = true;
     }
 
     private void interrupt() {
@@ -521,6 +524,10 @@ public class QLVM {
 
     public OracleWriter getOracleWriter() {
         return oracleWriter;
+    }
+
+    public boolean isInTestMode() {
+        return inTestMode;
     }
 }
 
