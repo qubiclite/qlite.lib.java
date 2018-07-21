@@ -6,7 +6,7 @@
 
     <groupId>org.qubiclite</groupId>
     <artifactId>qlite.lib.java</artifactId>
-    <version>0.2-SNAPSHOT</version>
+    <version>0.2</version>
     <packaging>pom</packaging>
     <name>QLite</name>
     <description>The Qubic Lite library provides a framework to interact with the Qubic Lite protocol by creating, reading and processing qubics.</description>
