@@ -164,8 +164,9 @@ public class QubicWriter {
      * @return determined QubicWriterState
      * */
     private static QubicWriterState determineState(QubicReader qr) {
-        if(qr.getAssemblyList() == null)
-            return QubicWriterState.ASSEMBLY_PHASE;
+        if(qr.getAssemblyList() == null) {
+            return (qr.getExecutionStart() < System.currentTimeMillis()/1000) ? QubicWriterState.ABORTED : QubicWriterState.ASSEMBLY_PHASE;
+        }
         return QubicWriterState.EXECUTION_PHASE;
     }
 
@@ -204,9 +205,14 @@ public class QubicWriter {
     public ArrayList<String> getAssembly() {
         return assembly;
     }
-}
 
+    public String getState() {
+        if(state != QubicWriterState.EXECUTION_PHASE && getTimeUntilExecutionStart() < 0)
+            state = QubicWriterState.ABORTED;
+        return state.name().toLowerCase().replace('_', ' ');
+    }
 
-enum QubicWriterState {
-    PRE_ASSEMBLY_PHASE, ASSEMBLY_PHASE, EXECUTION_PHASE;
+    enum QubicWriterState {
+        PRE_ASSEMBLY_PHASE, ASSEMBLY_PHASE, EXECUTION_PHASE, ABORTED;
+    }
 }
