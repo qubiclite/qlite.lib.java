@@ -1,6 +1,7 @@
 package tangle;
 
 import constants.TangleJSONConstants;
+import exceptions.CorruptIAMStreamException;
 import jota.model.Transaction;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
@@ -38,6 +39,8 @@ public class IAMPublisher extends IAMStream {
     public IAMPublisher(String id, String privKeyTrytes) {
         this.id = id;
         String pubKeyTrytes = TangleAPI.getInstance().findTransactionByHash(id, false);
+        if(pubKeyTrytes == null)
+            throw new CorruptIAMStreamException("failed loading root transaction for IAM stream: '"+id+"'", null);
         signer.loadKeysFromTrytes(privKeyTrytes, pubKeyTrytes);
     }
 
