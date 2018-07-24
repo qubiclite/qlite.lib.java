@@ -67,7 +67,7 @@ public class IAMReader extends IAMStream {
             String signature = container.getString(TangleJSONConstants.TANGLE_PUBLISHER_SIGNATURE);
             JSONObject content = container.getJSONObject(TangleJSONConstants.TANGLE_PUBLISHER_CONTENT);
 
-            if(signer.verify(pubKeyString, signature, content.toString()))
+            if(signer.verify(pubKeyString, signature, index + "!" + content.toString()))
                 return content;
             System.err.println("INVALID SIGNATURE: " + hash);
         }

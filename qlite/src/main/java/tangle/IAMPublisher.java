@@ -53,7 +53,7 @@ public class IAMPublisher extends IAMStream {
     public String publish(int index, JSONObject content) {
         JSONObject messageContainer = new JSONObject();
         messageContainer.put(TangleJSONConstants.TANGLE_PUBLISHER_CONTENT,  content);
-        messageContainer.put(TangleJSONConstants.TANGLE_PUBLISHER_SIGNATURE, signer.sign(content.toString()));
+        messageContainer.put(TangleJSONConstants.TANGLE_PUBLISHER_SIGNATURE, signer.sign(index + "!" + content.toString()));
         String hash = sendDataInFragments(index, messageContainer);
         return hash;
     }
