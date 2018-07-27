@@ -2,7 +2,7 @@ package constants;
 
 public class GeneralConstants {
 
-    public static final String VERSION = "ql-0.2.1-SNAPSHOT";
+    public static final String VERSION = "ql-0.3";
 
     public static final int QLVM_MAX_VALUE_LENGTH = 5000;
 
