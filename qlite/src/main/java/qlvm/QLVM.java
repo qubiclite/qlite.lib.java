@@ -63,7 +63,7 @@ public class QLVM {
      * */
     public static String run(String code, OracleWriter oracleWriter) {
 
-        final ObjectContainer oc = new ObjectContainer("{'error_message': 'not sure what happened here', 'error_type': 'unknown'}");
+        final ObjectContainer oc = new ObjectContainer(null);
         final QLVM qlvm = new QLVM(oracleWriter);
 
         Thread t = new Thread() {
@@ -85,7 +85,24 @@ public class QLVM {
         qlvm.interrupt();
         try{ Thread.sleep(200); } catch (InterruptedException e) { e.printStackTrace(); }
 
+        if(oc.o == null) {
+            return throwableToJSON(new QLRunTimeLimitExceededException()).toString();
+        }
+
         return (String)oc.o;
+    }
+
+    private static JSONObject throwableToJSON(Throwable t) {
+
+        JSONObject o = new JSONObject();
+        o.put("error_type", t.getClass().getName());
+        o.put("error_message", t.getMessage());
+
+        StringBuilder stackTrace = new StringBuilder();
+        for(int i = 0; i < t.getStackTrace().length; i++)
+            stackTrace.append(t.getStackTrace()[i].getFileName() + ": #" + t.getStackTrace()[i].getLineNumber() + "\n");
+        o.put("error_origin", stackTrace.toString());
+        return o;
     }
 
     public static String testRun(String code, int epoch) {
@@ -129,16 +146,8 @@ public class QLVM {
             throw new NoReturnThrowable();
         } catch (ReturnResultThrowable e) {
             return e.result;
-        } catch (Throwable e) {
-            JSONObject o = new JSONObject();
-            o.put("error_type", e.getClass().getName());
-            o.put("error_message", e.getMessage());
-
-            StringBuilder stackTrace = new StringBuilder();
-            for(int i = 0; i < e.getStackTrace().length; i++)
-                stackTrace.append(e.getStackTrace()[i].getFileName() + ": #" + e.getStackTrace()[i].getLineNumber() + "\n");
-            o.put("error_origin", stackTrace.toString());
-            return o.toString();
+        } catch (Throwable t) {
+            return throwableToJSON(t).toString();
         }
     }
 
