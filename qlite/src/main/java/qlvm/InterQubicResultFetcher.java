@@ -1,11 +1,14 @@
 package qlvm;
 
+import constants.GeneralConstants;
 import oracle.Assembly;
+import oracle.OracleReader;
 import oracle.QuorumBasedResult;
 import qubic.QubicReader;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 /**
  * @author microhash
@@ -25,11 +28,12 @@ public class InterQubicResultFetcher {
     public static QuorumBasedResult fetchResult(String qubicId, int epochIndex) {
 
         Assembly assembly = getAssembly(qubicId);
+        List<OracleReader> selection = assembly.selectRandomOracleReaders(GeneralConstants.QUORUM_MAX_ORACLE_SELECTION_SIZE);
 
-        assembly.fetchEpoch(true, epochIndex);
-        assembly.fetchEpoch(false, epochIndex);
+        assembly.fetchEpoch(selection,true, epochIndex);
+        assembly.fetchEpoch(selection, false, epochIndex);
 
-        return assembly.determineQuorumBasedResult(epochIndex);
+        return assembly.determineQuorumBasedResult(selection, epochIndex);
     }
     /**
      * Fetches the QuorumBasedResult from any qubic.
