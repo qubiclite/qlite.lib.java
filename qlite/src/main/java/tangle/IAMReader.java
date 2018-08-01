@@ -63,12 +63,19 @@ public class IAMReader extends IAMStream {
                 continue;
             }
 
-            // TODO make sure that json attributes exists
-            String signature = container.getString(TangleJSONConstants.TANGLE_PUBLISHER_SIGNATURE);
-            JSONObject content = container.getJSONObject(TangleJSONConstants.TANGLE_PUBLISHER_CONTENT);
+            String signature;
+            JSONObject content;
+
+            try {
+                signature = container.getString(TangleJSONConstants.TANGLE_PUBLISHER_SIGNATURE);
+                content = container.getJSONObject(TangleJSONConstants.TANGLE_PUBLISHER_CONTENT);
+            } catch (JSONException e) {
+                continue;
+            }
 
             if(signer.verify(pubKeyString, signature, index + "!" + content.toString()))
                 return content;
+
             System.err.println("INVALID SIGNATURE: " + hash);
         }
 
@@ -82,6 +89,7 @@ public class IAMReader extends IAMStream {
      * @param depth      depth in the current transaction chain (0 for initial call, each recursive calls adds 1),
      *                   allows to prevent maliciously long spam chains
      * @return the concatenated message of all following transactions following the base transaction (including that one)
+     * TODO make fragmentation more efficient
      * */
     private String readDataInFragments(String baseTxHash, String lastTxMsg, int depth) {
 
