@@ -2,7 +2,7 @@ package qubic;
 
 import constants.GeneralConstants;
 import constants.TangleJSONConstants;
-import tangle.IAMPublisher;
+import iam.IAMWriter;
 import org.json.JSONObject;
 import tangle.TangleAPI;
 import tangle.TryteTool;
@@ -19,7 +19,7 @@ import java.util.ArrayList;
 
 public class QubicWriter {
 
-    private final IAMPublisher publisher;
+    private final IAMWriter publisher;
     private final String applicationAddress;
     private final int executionStart;
     private final int hashPeriodDuration, resultPeriodDuration, runTimeLimit;
@@ -42,7 +42,7 @@ public class QubicWriter {
         if(executionStart < System.currentTimeMillis()/1000)
             throw new IllegalArgumentException("parameter 'executionStart' is smaller than current timestamp, indicating the execution would have already started");
 
-        publisher = new IAMPublisher();
+        publisher = new IAMWriter();
 
         this.executionStart = executionStart;
         this.hashPeriodDuration = hashPeriodDuration;
@@ -60,7 +60,7 @@ public class QubicWriter {
      * */
     public QubicWriter(String id, String privKeyTrytes) {
 
-        publisher = new IAMPublisher(id, privKeyTrytes);
+        publisher = new IAMWriter(id, privKeyTrytes);
 
         QubicReader qr = new QubicReader(id);
         executionStart = qr.getExecutionStart();
@@ -111,7 +111,7 @@ public class QubicWriter {
      * */
     public void promote() {
         String address = TryteTool.buildCurrentQubicPromotionAddress();
-        TangleAPI.getInstance().sendTransfer(address, publisher.getID(), false);
+        TangleAPI.getInstance().sendTransaction(address, publisher.getID(), false);
     }
 
     /**
@@ -149,7 +149,7 @@ public class QubicWriter {
      * private field, useable by handleApplications()
      * */
     public void fetchApplications() {
-        String[] applicationTransactions = TangleAPI.getInstance().readTransactionsByAddress(applicationAddress, true).values().toArray(new String[0]);
+        String[] applicationTransactions = TangleAPI.getInstance().readTransactionsByAddress(null, applicationAddress, true).values().toArray(new String[0]);
         applications = new JSONObject[applicationTransactions.length];
         for(int i = 0; i < applicationTransactions.length; i++) {
             applications[i] = new JSONObject(applicationTransactions[i]); // TODO check if valid JSONObject

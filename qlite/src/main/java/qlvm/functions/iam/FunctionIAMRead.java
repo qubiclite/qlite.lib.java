@@ -3,7 +3,7 @@ package qlvm.functions.iam;
 import org.json.JSONObject;
 import qlvm.QLVM;
 import qlvm.functions.Function;
-import tangle.IAMReader;
+import iam.IAMReader;
 
 public class FunctionIAMRead extends Function {
 

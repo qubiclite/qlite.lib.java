@@ -2,9 +2,8 @@ package oracle;
 
 import constants.TangleJSONConstants;
 import exceptions.CorruptIAMStreamException;
+import iam.IAMWriter;
 import qlvm.QLVM;
-import qubic.QubicWriter;
-import tangle.IAMPublisher;
 import org.json.JSONObject;
 import qubic.QubicReader;
 import oracle.statements.HashStatement;
@@ -24,8 +23,8 @@ import java.util.LinkedList;
  * */
 public class OracleWriter {
 
-    private final IAMPublisher resultStream;
-    private final IAMPublisher hashStream;
+    private final IAMWriter resultStream;
+    private final IAMWriter hashStream;
 
     private final Assembly assembly;
     private final QubicReader qubicReader;
@@ -50,8 +49,8 @@ public class OracleWriter {
 
         this.qubicReader = qubicReader;
         assembly = new Assembly(qubicReader);
-        resultStream = new IAMPublisher();
-        hashStream = new IAMPublisher();
+        resultStream = new IAMWriter();
+        hashStream = new IAMWriter();
 
         JSONObject obj = new JSONObject();
         obj.put(TangleJSONConstants.ORACLE_RESULT_STREAM, resultStream.getID());
@@ -71,8 +70,8 @@ public class OracleWriter {
     public OracleWriter(QubicReader qubicReader, String hashStatPubId, String hashPrivKeyTrytes, String resStatPubId, String resPrivKeyTrytes) {
 
         this.qubicReader = qubicReader;
-        resultStream = new IAMPublisher(resStatPubId, resPrivKeyTrytes);
-        hashStream = new IAMPublisher(hashStatPubId, hashPrivKeyTrytes);
+        resultStream = new IAMWriter(resStatPubId, resPrivKeyTrytes);
+        hashStream = new IAMWriter(hashStatPubId, hashPrivKeyTrytes);
         assembly = new Assembly(qubicReader);
     }
 
@@ -132,7 +131,7 @@ public class OracleWriter {
         JSONObject application = new JSONObject();
         application.put(TangleJSONConstants.ORACLE_ID, resultStream.getID());
         application.put(TangleJSONConstants.ORACLE_NAME, name);
-        TangleAPI.getInstance().sendTransfer(qubicReader.getApplicationAddress(), application.toString(), true);
+        TangleAPI.getInstance().sendTransaction(qubicReader.getApplicationAddress(), application.toString(), true);
     }
 
     /**

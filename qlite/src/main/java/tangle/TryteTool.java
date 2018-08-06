@@ -1,5 +1,6 @@
 package tangle;
 
+import iam.IAMStream;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -82,6 +83,10 @@ public class TryteTool {
         }
 
         return bytes;
+    }
+
+    public static boolean isTryteSequence(String string) {
+        return string.matches("^[A-Z9]*$");
     }
 
     /**

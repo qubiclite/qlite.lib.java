@@ -3,13 +3,15 @@ package oracle;
 import constants.TangleJSONConstants;
 import exceptions.CorruptIAMStreamException;
 import exceptions.InvalidStatementException;
-import tangle.IAMReader;
+import jota.model.Transaction;
+import iam.IAMReader;
 import org.json.JSONObject;
 import oracle.statements.HashStatement;
 import oracle.statements.ResultStatement;
 import oracle.statements.Statement;
 
 import java.util.HashMap;
+import java.util.List;
 
 /**
  * @author microhash
@@ -32,7 +34,7 @@ public class OracleReader {
      * Initializes TangleReaders for HashStatements and ResultStatements.
      * @param resultsRoot root of oracles result tangle stream
      * */
-    public OracleReader(String resultsRoot)  throws CorruptIAMStreamException {
+    public OracleReader(String resultsRoot) throws CorruptIAMStreamException {
         iamResults = new IAMReader(resultsRoot);
 
         // reads oracle specification transaction to find root of HashStatement mam channel
@@ -44,11 +46,12 @@ public class OracleReader {
      * Fetches the Statement at a certain position from the respective oracles IAM stream
      * if it exists and is well-formed. Can be used both for HashStatement and ResultStatement.
      * If the Statement has already been fetched before, it will just return the old one.
+     * @param preload         resource of prefetched transactions for efficiency purposes, optional (set to null if not required)
      * @param isHashStatement fetches HashStatement if TRUE, ResultStatement if FALSE
-     * @param epoch epoch index for desired Statement
+     * @param epoch           epoch index for desired Statement
      * @return the fetched Statement, NULL if not existent or malformed
      * */
-    protected Statement readStatement(boolean isHashStatement, int epoch) {
+    protected Statement readStatement(List<Transaction> preload, boolean isHashStatement, int epoch) {
 
         HashMap map = (isHashStatement ? hashStatements : resultStatements);
         if(map.containsKey(epoch))
@@ -57,7 +60,7 @@ public class OracleReader {
         final IAMReader reader = isHashStatement ? iamHashes : iamResults;
 
         // read JSONObject from tangle stream
-        JSONObject statObj = reader.read(epoch+1); // +1 because address for epoch #0 is ...999A, not 9999
+        JSONObject statObj = reader.read(preload, epoch+1); // +1 because address for epoch #0 is ...999A, not 9999
         if(statObj == null)
             return null;
 
@@ -83,5 +86,13 @@ public class OracleReader {
 
     public String getID() {
         return iamResults.getID();
+    }
+
+    public IAMReader getHashIAMStream() {
+        return iamHashes;
+    }
+
+    public IAMReader getResultIAMStream() {
+        return iamResults;
     }
 }

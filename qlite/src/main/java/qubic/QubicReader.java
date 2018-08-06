@@ -6,7 +6,7 @@ import exceptions.CorruptIAMStreamException;
 import exceptions.InvalidQubicTransactionException;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
-import tangle.IAMReader;
+import iam.IAMReader;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import tangle.TangleAPI;
@@ -123,7 +123,7 @@ public class QubicReader {
      * */
     public static ArrayList<QubicReader> findQubics() {
         ArrayList<QubicReader> qubics = new ArrayList<>();
-        String[] recentPromotions = TangleAPI.getInstance().readTransactionsByAddress(TryteTool.buildCurrentQubicPromotionAddress(), false).values().toArray(new String[0]);
+        String[] recentPromotions = TangleAPI.getInstance().readTransactionsByAddress(null, TryteTool.buildCurrentQubicPromotionAddress(), false).values().toArray(new String[0]);
         for(String recentPromotion : recentPromotions) {
             qubics.add(new QubicReader(StringUtils.rightPad(recentPromotion, 81, '9')));
         }

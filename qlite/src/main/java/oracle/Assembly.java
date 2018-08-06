@@ -1,8 +1,10 @@
 package oracle;
 
 import constants.GeneralConstants;
+import jota.model.Transaction;
 import oracle.statements.ResultStatement;
 import qubic.QubicReader;
+import tangle.TangleAPI;
 
 import java.util.*;
 
@@ -51,7 +53,7 @@ public class Assembly {
      * @param epochIndex index of the epoch for which the result shall be determined
      * @return quorum based result
      * */
-    public QuorumBasedResult determineQuorumBasedResult(List<OracleReader> selection, int epochIndex) {
+    public QuorumBasedResult determineQuorumBasedResult( List<OracleReader> selection, int epochIndex) {
 
         // empty assembly
         if(selection.size() == 0)
@@ -83,8 +85,17 @@ public class Assembly {
      * TODO optimize fetching by putting all findTransaction() requests into a single API call
      * */
     public void fetchEpoch(List<OracleReader> selection, boolean forHashStatements, int epoch) {
+
+        String[] addresses = new String[selection.size()];
+        for (int i = 0; i < addresses.length; i++) {
+            OracleReader or = selection.get(i);
+            addresses[i] = (forHashStatements ? or.getHashIAMStream() : or.getResultIAMStream()).buildAddress(epoch+1);
+        }
+
+        List<Transaction> preload = TangleAPI.getInstance().findTransactionsByAddresses(addresses);
+
         for (OracleReader o : selection)
-            o.readStatement(forHashStatements, epoch);
+            o.readStatement(preload, forHashStatements, epoch);
     }
 
     /**
@@ -111,8 +122,8 @@ public class Assembly {
         for(OracleReader oracleReader : selection) {
 
             // determine oracles result, ignore result if not found or hash statement invalid
-            oracleReader.readStatement(true, epochIndex);
-            ResultStatement resStat = (ResultStatement)oracleReader.readStatement(false, epochIndex);
+            oracleReader.readStatement(null, true, epochIndex);
+            ResultStatement resStat = (ResultStatement)oracleReader.readStatement(null,false, epochIndex);
 
             if(resStat == null || !resStat.isHashStatementValid()) continue;
             String result = resStat.getContent();
@@ -176,7 +187,7 @@ public class Assembly {
 
             // neutral rating for qnode.statements that were ignored in the last epoch
             // due to not being existent or following an invalid hash statement
-            ResultStatement resultEpoch = (ResultStatement)oracleReader.readStatement(false, epochIndex);
+            ResultStatement resultEpoch = (ResultStatement)oracleReader.readStatement(null,false, epochIndex);
             if(resultEpoch == null || !resultEpoch.isHashStatementValid()) {
                 ratings[i] = 0;
                 continue;

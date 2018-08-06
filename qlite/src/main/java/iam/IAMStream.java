@@ -1,6 +1,7 @@
-package tangle;
+package iam;
 
 import org.apache.commons.lang3.StringUtils;
+import tangle.TryteTool;
 
 public abstract class IAMStream {
 
