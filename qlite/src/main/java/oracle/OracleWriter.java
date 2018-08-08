@@ -14,6 +14,7 @@ import tangle.TryteTool;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 
 /**
  * @author microhash
@@ -126,13 +127,19 @@ public class OracleWriter {
      * */
     public void apply() {
 
-        if(qubicReader.getExecutionStart() < System.currentTimeMillis()/1000)
+        if(qubicReader.getSpecification().getExecutionStartUnix() < System.currentTimeMillis()/1000)
             throw new IllegalStateException("applying aborted: qubic has already entered execution phase");
 
+        JSONObject application = generateApplication();
+        String applicationAddress = qubicReader.getID();
+        TangleAPI.getInstance().sendMessage(applicationAddress, application.toString());
+    }
+
+    private JSONObject generateApplication() {
         JSONObject application = new JSONObject();
         application.put(TangleJSONConstants.ORACLE_ID, resultStream.getID());
         application.put(TangleJSONConstants.ORACLE_NAME, name);
-        TangleAPI.getInstance().sendMessage(qubicReader.getApplicationAddress(), application.toString());
+        return application;
     }
 
     /**
@@ -140,7 +147,7 @@ public class OracleWriter {
      * @return result string for current epoch
      * */
     private String calcResult() {
-        return QLVM.run(qubicReader.getCode(), OracleWriter.this);
+        return QLVM.run(qubicReader.getSpecification().getCode(), OracleWriter.this);
     }
 
     /**
@@ -150,7 +157,7 @@ public class OracleWriter {
      * */
     public boolean assemble() {
 
-        ArrayList<String> oracleIDs = qubicReader.getAssemblyList();
+        List<String> oracleIDs = qubicReader.getAssemblyList();
 
         if(oracleIDs == null || !oracleIDs.contains(getID()))
             return false;

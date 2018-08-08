@@ -1,14 +1,17 @@
 package qubic;
 
-import constants.GeneralConstants;
 import constants.TangleJSONConstants;
 import iam.IAMWriter;
+import org.json.JSONException;
 import org.json.JSONObject;
 import tangle.TangleAPI;
 import tangle.TryteTool;
 
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * @author microhash
@@ -20,57 +23,28 @@ import java.util.ArrayList;
 
 public class QubicWriter {
 
-    private final IAMWriter publisher;
-    private final String applicationAddress;
-    private final int executionStart;
-    private final int hashPeriodDuration, resultPeriodDuration, runTimeLimit;
+    private IAMWriter publisher;
     private final ArrayList<String> assembly = new ArrayList<>();
-    private JSONObject[] applications;
     private String qubicTxHash, assemblyTxHash;
-    private String code;
+    private final EditableQubicSpecification specification;
 
-    private QubicWriterState state;
+    private QubicWriterState state = QubicWriterState.PRE_ASSEMBLY_PHASE;
 
-    /**
-     * Creates the qubic's IAMStream identity.
-     * @param executionStart       unix timestamp of assembly phase end / execution phase start
-     * @param hashPeriodDuration   duration of each hash period in seconds
-     * @param resultPeriodDuration duration of each result period in seconds
-     * @param runTimeLimit         maximum time in ms before the execution of an epoch is aborted
-     * */
-    public QubicWriter(int executionStart, int hashPeriodDuration, int resultPeriodDuration, int runTimeLimit) {
-
-        if(executionStart < System.currentTimeMillis()/1000)
-            throw new IllegalArgumentException("parameter 'executionStart' is smaller than current timestamp, indicating the execution would have already started");
-
+    public QubicWriter() {
         publisher = new IAMWriter();
-
-        this.executionStart = executionStart;
-        this.hashPeriodDuration = hashPeriodDuration;
-        this.resultPeriodDuration = resultPeriodDuration;
-        this.runTimeLimit = runTimeLimit;
-        this.applicationAddress = TryteTool.generateRandom(81);
-
-        state = QubicWriterState.PRE_ASSEMBLY_PHASE;
+        specification = new EditableQubicSpecification();
     }
 
     /**
      * Recreates an already existing Qubic by its IAMStream identity.
-     * @param id            IAMStream identity of the qubic
-     * @param privKeyTrytes tryte encoded private key
+     * @param id               IAMStream identity of the qubic
+     * @param privateKeyTrytes tryte encoded private key
      * */
-    public QubicWriter(String id, String privKeyTrytes) throws InvalidKeySpecException {
-
-        publisher = new IAMWriter(id, privKeyTrytes);
-
+    public QubicWriter(String id, String privateKeyTrytes) throws InvalidKeySpecException {
+        publisher = new IAMWriter(id, privateKeyTrytes);
         QubicReader qr = new QubicReader(id);
-        executionStart = qr.getExecutionStart();
-        hashPeriodDuration = qr.getHashPeriodDuration();
-        resultPeriodDuration = qr.getResultPeriodDuration();
-        runTimeLimit = qr.getRunTimeLimit();
-        applicationAddress = qr.getApplicationAddress();
-
-        state = determineState(qr);
+        specification = new EditableQubicSpecification(qr.getSpecification());
+        state = determineQubicWriterStateFromQubicReader(qr);
     }
 
     /**
@@ -84,26 +58,14 @@ public class QubicWriter {
     /**
      * Publishes the qubic transaction to the IAMStream.
      * */
-    public void publishQubicTx() {
+    public synchronized void publishQubicTransaction() {
 
         if(state != QubicWriterState.PRE_ASSEMBLY_PHASE)
             throw new IllegalStateException("qubic transaction can only be published if qubic is in state PRE_ASSEMBLY_PHASE, but qubic is in state " + state.name());
 
-        // generate json specification of qubic request
-        JSONObject qubicTx = new JSONObject();
-        qubicTx.put(TangleJSONConstants.TRANSACTION_TYPE, "qubic transaction");
-        qubicTx.put(TangleJSONConstants.VERSION, GeneralConstants.VERSION);
-        qubicTx.put(TangleJSONConstants.QUBIC_CODE, code);
-        qubicTx.put(TangleJSONConstants.QUBIC_APPLICATION_ADDRESS, applicationAddress);
-
-        qubicTx.put(TangleJSONConstants.QUBIC_EXECUTION_START, executionStart);
-        qubicTx.put(TangleJSONConstants.QUBIC_HASH_PERIOD_DURATION, hashPeriodDuration);
-        qubicTx.put(TangleJSONConstants.QUBIC_RESULT_PERIOD_DURATION, resultPeriodDuration);
-        qubicTx.put(TangleJSONConstants.QUBIC_RUN_TIME_LIMIT, runTimeLimit);
-
-        // publish json to IAMStream
-        qubicTxHash = publisher.publish(0, qubicTx);
-
+        specification.throwExceptionIfInvalid();
+        JSONObject qubicTransactionJSON = specification.generateQubicTransactionJSON();
+        qubicTxHash = publisher.publish(0, qubicTransactionJSON);
         state = QubicWriterState.ASSEMBLY_PHASE;
     }
 
@@ -119,78 +81,55 @@ public class QubicWriter {
      * Publishes the assembly transaction to the IAMStream. The assembly will consist
      * of all oracles added via addOracle().
      * */
-    public void publishAssemblyTx() {
-
-        if(state != QubicWriterState.ASSEMBLY_PHASE)
-            throw new IllegalStateException("assembly transaction can only be published if qubic is in state ASSEMBLY_PHASE, but qubic is in state " + state.name());
-
-        if(System.currentTimeMillis()/1000 >= executionStart)
-            throw new IllegalStateException("assembly tx aborted: the execution phase would have already started, it is too late to publish the assembly tx now");
-
-        // generate json specification of qubic contract
-        JSONObject assemblyTx = new JSONObject();
-        assemblyTx.put(TangleJSONConstants.TRANSACTION_TYPE, "assembly transaction");
-        assemblyTx.put(TangleJSONConstants.QUBIC_ASSEMBLY, assembly);
-
-        // publish json to IAMStream
-        assemblyTxHash = publisher.publish(1, assemblyTx);
-
+    public synchronized void publishAssemblyTransaction() {
+        throwExceptionIfCannotPublishAssemblyTransaction();
+        JSONObject assemblyTransaction = generateAssemblyTransaction(assembly);
+        assemblyTxHash = publisher.publish(1, assemblyTransaction);
         state = QubicWriterState.EXECUTION_PHASE;
     }
 
-    /**
-     * @return IAMStream identity of qubic
-     * */
     public String getID() {
         return publisher.getID();
     }
 
     /**
-     * Fetches all applications for this qubic and stores them in
-     * private field, useable by handleApplications()
+     * Fetches all applications for this qubic
+     * @return the fetched applications
      * */
-    public void fetchApplications() {
-        String[] applicationTransactions = TangleAPI.getInstance().readTransactionsByAddress(null, applicationAddress, true).values().toArray(new String[0]);
-        applications = new JSONObject[applicationTransactions.length];
-        for(int i = 0; i < applicationTransactions.length; i++) {
-            applications[i] = new JSONObject(applicationTransactions[i]); // TODO check if valid JSONObject
-        }
+    public List<JSONObject> fetchApplications() {
+        Collection<String> transactionMessagesOnApplicationAddress = TangleAPI.getInstance().readTransactionsByAddress(null, getID(), true).values();
+        return filterValidApplicationsFromTransactionMessages(transactionMessagesOnApplicationAddress);
     }
 
-    /**
-     * Determines the QubicWriterState by checking whether assembly
-     * transaction has already been published. Cannot determine
-     * PRE_ASSEMBLY_PHASE.
-     * @param qr QubicReader of Qubic in question
-     * @return determined QubicWriterState
-     * */
-    private static QubicWriterState determineState(QubicReader qr) {
-        if(qr.getAssemblyList() == null) {
-            return (qr.getExecutionStart() < System.currentTimeMillis()/1000) ? QubicWriterState.ABORTED : QubicWriterState.ASSEMBLY_PHASE;
+    private List<JSONObject> filterValidApplicationsFromTransactionMessages(Iterable<String> uncheckedTransactionMessages) {
+        List<JSONObject> applications = new LinkedList<>();
+        for(String transactionMessage : uncheckedTransactionMessages) {
+            try {
+                applications.add(new JSONObject(transactionMessage));
+            } catch (JSONException e) {  }
         }
-        return QubicWriterState.EXECUTION_PHASE;
-    }
-
-    public JSONObject[] getApplications() {
         return applications;
     }
 
-    public int getTimeUntilExecutionStart() { return (int)(getExecutionStart()-System.currentTimeMillis()/1000); }
-
-    public void setCode(String code) {
-        this.code = code;
+    private void throwExceptionIfCannotPublishAssemblyTransaction() {
+        if(state != QubicWriterState.ASSEMBLY_PHASE)
+            throw new IllegalStateException("assembly transaction can only be published if qubic is in state ASSEMBLY_PHASE, but qubic is in state " + state.name());
+        if(specification.timeUntilExecutionStart() <= 0)
+            throw new IllegalStateException("the execution phase would have already started, it is too late to publish the assembly transaction now");
     }
 
-    public long getExecutionStart() {
-        return executionStart;
+    private JSONObject generateAssemblyTransaction(List<String> assembly) {
+
+        JSONObject assemblyTransaction = new JSONObject();
+        assemblyTransaction.put(TangleJSONConstants.TRANSACTION_TYPE, "assembly transaction");
+        assemblyTransaction.put(TangleJSONConstants.QUBIC_ASSEMBLY, assembly);
+        return assemblyTransaction;
     }
 
-    public int getHashPeriodDuration() {
-        return hashPeriodDuration;
-    }
-
-    public int getResultPeriodDuration() {
-        return resultPeriodDuration;
+    private static QubicWriterState determineQubicWriterStateFromQubicReader(QubicReader qr) {
+        if(qr.getAssemblyList() != null)
+            return QubicWriterState.EXECUTION_PHASE;
+        return (qr.getSpecification().getExecutionStartUnix() < System.currentTimeMillis()/1000) ? QubicWriterState.ABORTED : QubicWriterState.ASSEMBLY_PHASE;
     }
 
     public String getQubicTxHash() {
@@ -208,12 +147,22 @@ public class QubicWriter {
     }
 
     public String getState() {
-        if(state != QubicWriterState.EXECUTION_PHASE && getTimeUntilExecutionStart() < 0)
+        if(state != QubicWriterState.EXECUTION_PHASE && specification.timeUntilExecutionStart() < 0)
             state = QubicWriterState.ABORTED;
         return state.name().toLowerCase().replace('_', ' ');
     }
 
     enum QubicWriterState {
         PRE_ASSEMBLY_PHASE, ASSEMBLY_PHASE, EXECUTION_PHASE, ABORTED;
+    }
+
+    public EditableQubicSpecification getEditableSpecification() {
+        if(state != QubicWriterState.PRE_ASSEMBLY_PHASE)
+            throw new IllegalStateException("the specification cannot be edited anymore because the qubic transaction has already been published");
+        return specification;
+    }
+
+    public QubicSpecification getSpecification() {
+        return state == QubicWriterState.PRE_ASSEMBLY_PHASE ? specification : new QubicSpecification(specification);
     }
 }

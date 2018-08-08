@@ -32,7 +32,7 @@ public class Assembly {
      * Adds oracleReaders to the assembly.
      * @param assemblyRoots the oracle ids of each respective oracle to add
      * */
-    public void addOracles(ArrayList<String> assemblyRoots) {
+    public void addOracles(List<String> assemblyRoots) {
         if(assemblyRoots != null)
             for(String assemblyRoot : assemblyRoots)
                 oracleReaders.add(new OracleReader(assemblyRoot));

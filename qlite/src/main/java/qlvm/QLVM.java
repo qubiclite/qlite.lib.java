@@ -77,7 +77,7 @@ public class QLVM {
         t.start();
 
         try {
-            synchronized (oc) { oc.wait(oracleWriter.getQubicReader().getRunTimeLimit()*1000); }
+            synchronized (oc) { oc.wait(oracleWriter.getQubicReader().getSpecification().getRuntimeLimit()*1000); }
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

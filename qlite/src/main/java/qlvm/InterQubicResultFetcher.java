@@ -59,7 +59,7 @@ public class InterQubicResultFetcher {
             assembly = assemblies.get(qubicID);
         } else {
             QubicReader qr = new QubicReader(qubicID);
-            ArrayList<String> assemblyList = qr.getAssemblyList();
+            List<String> assemblyList = qr.getAssemblyList();
             assembly = new Assembly(qr);
             assembly.addOracles(assemblyList);
             assemblies.put(qr.getID(), assembly);
@@ -75,7 +75,7 @@ public class InterQubicResultFetcher {
         if(assemblies.containsKey(qr.getID())) {
             assembly = assemblies.get(qr.getID());
         } else {
-            ArrayList<String> assemblyList = qr.getAssemblyList();
+            List<String> assemblyList = qr.getAssemblyList();
             assembly = new Assembly(qr);
             assembly.addOracles(assemblyList);
             assemblies.put(qr.getID(), assembly);

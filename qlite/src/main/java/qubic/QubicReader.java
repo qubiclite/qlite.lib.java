@@ -2,6 +2,7 @@ package qubic;
 
 import constants.GeneralConstants;
 import constants.TangleJSONConstants;
+import exceptions.UnsupportedVersionException;
 import iam.exceptions.CorruptIAMStreamException;
 import exceptions.InvalidQubicTransactionException;
 import org.apache.commons.lang3.StringUtils;
@@ -13,6 +14,8 @@ import tangle.TangleAPI;
 import tangle.TryteTool;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * @author microhash
@@ -26,105 +29,73 @@ import java.util.ArrayList;
 
 public class QubicReader {
 
-    private final IAMReader reader;
-    private ArrayList<String> assemblyList;
-    private String id;
-
-    private final String code;
-    private final String version;
-    private final String applicationAddress;
-    private final int executionStart;
-    private final int hashPeriodDuration;
-    private final int resultPeriodDuration;
-    private final int runtimeLimit;
+    private IAMReader reader;
+    private List<String> assemblyList;
+    private final String id;
+    private final QubicSpecification specification;
 
     /**
      * Creates the IAMReader for the qubic stream and fetches the qubic transaction.
+     *
      * @param id IAMStream identity of qubic
-     * */
-    public QubicReader(String id) throws InvalidQubicTransactionException {
+     */
+    public QubicReader(String id) throws InvalidQubicTransactionException, CorruptIAMStreamException {
         this.id = id;
+        reader = new IAMReader(id);
+        JSONObject qubicTransaction = fetchQubicTransaction();
+        specification = new QubicSpecification(qubicTransaction);
+    }
 
-        try {
-            reader = new IAMReader(id);
-        } catch (CorruptIAMStreamException e) {
-            throw new InvalidQubicTransactionException(e.getMessage(), e);
-        }
-
-        JSONObject qubicTx = reader.read(0);
-
-        if(qubicTx == null)
-            throw new InvalidQubicTransactionException("qubic transaction not found", null);
-
-        QubicTransactionVerificator.verify(qubicTx);
-
-        // init attributes
-        try {
-            version              = qubicTx.getString(TangleJSONConstants.VERSION);
-
-            if(!version.equals(GeneralConstants.VERSION))
-                throw new InvalidQubicTransactionException("version declared in qubic does not match qlri version", null);
-
-            code                 = qubicTx.getString(TangleJSONConstants.QUBIC_CODE);
-            applicationAddress   = qubicTx.getString(TangleJSONConstants.QUBIC_APPLICATION_ADDRESS);
-            executionStart       = qubicTx.getInt(TangleJSONConstants.QUBIC_EXECUTION_START);
-            hashPeriodDuration   = qubicTx.getInt(TangleJSONConstants.QUBIC_HASH_PERIOD_DURATION);
-            resultPeriodDuration = qubicTx.getInt(TangleJSONConstants.QUBIC_RESULT_PERIOD_DURATION);
-            runtimeLimit         = qubicTx.getInt(TangleJSONConstants.QUBIC_RUN_TIME_LIMIT);
-        } catch (JSONException e) {
-            throw new InvalidQubicTransactionException("failed to parse qubic meta data: " + e.getMessage(), e);
-        }
+    private JSONObject fetchQubicTransaction() {
+        JSONObject qubicTransaction = reader.read(0);
+        QubicTransactionValidator.throwExceptionIfInvalid(qubicTransaction);
+        return qubicTransaction;
     }
 
     /**
      * Lists the IAMStream identities of all oracles in the assembly transaction.
      * Fetches the assembly transaction if necessary.
+     *
      * @return ArrayList of oracle IAMStream identities, NULL if no assembly tx published
-     * */
-    public ArrayList<String> getAssemblyList() {
-
-        // fetch assembly if not already done so
-        fetchAssemblyTx();
+     */
+    public List<String> getAssemblyList() {
+        if (assemblyList == null)
+            assemblyList = fetchAssemblyList();
         return assemblyList;
     }
 
-    /**
-     * Fetches the assembly if that hasn't been done before.
-     * */
-    private void fetchAssemblyTx() {
-        if(assemblyList == null) {
-            JSONObject assemblyTx = reader.read(1);
-            if(assemblyTx == null)
-                return;
-
-            assemblyList = new ArrayList<>();
-
-            JSONArray assemblyArray;
-
-            try {
-                assemblyArray = assemblyTx.getJSONArray("assembly");
-            } catch (JSONException e) {
-                // if assembly transaction malformed, set assembly to empty list
-                return;
-            }
-
-            for(int i = 0; i < assemblyArray.length(); i++)
-                assemblyList.add(assemblyArray.getString(i));
-        }
+    private List<String> fetchAssemblyList() {
+        JSONArray assemblyJSONArray = fetchAssemblyJSONArray();
+        if (assemblyJSONArray == null)
+            return null;
+        return convertAssemblyJSONArrayToAssemblyList(assemblyJSONArray);
     }
 
-    public String getApplicationAddress() {
-        return applicationAddress;
+    private List<String> convertAssemblyJSONArrayToAssemblyList(JSONArray assemblyJSONArray) {
+        List<String> assemblyList = new LinkedList<>();
+        for (int i = 0; i < assemblyJSONArray.length(); i++)
+            assemblyList.add(assemblyJSONArray.getString(i));
+        return assemblyList;
+    }
+
+    private JSONArray fetchAssemblyJSONArray() {
+        JSONObject assemblyTransaction = reader.read(1);
+        try {
+            return assemblyTransaction.getJSONArray("assembly");
+        } catch (JSONException e) {
+            return null;
+        }
     }
 
     /**
      * Searches the tangle for recently promoted qubics.
+     *
      * @return ArrayList of all found qubics
-     * */
+     */
     public static ArrayList<QubicReader> findQubics() {
         ArrayList<QubicReader> qubics = new ArrayList<>();
         String[] recentPromotions = TangleAPI.getInstance().readTransactionsByAddress(null, TryteTool.buildCurrentQubicPromotionAddress(), false).values().toArray(new String[0]);
-        for(String recentPromotion : recentPromotions) {
+        for (String recentPromotion : recentPromotions) {
             qubics.add(new QubicReader(StringUtils.rightPad(recentPromotion, 81, '9')));
         }
         return qubics;
@@ -132,61 +103,60 @@ public class QubicReader {
 
     public int lastCompletedEpoch() {
 
-        long timeRunning = System.currentTimeMillis()/1000 - getExecutionStart();
-        int epochDuration = getEpochDuration();
-        return Math.max((int)Math.floor(timeRunning / epochDuration)-1, -1);
+        long timeRunning = System.currentTimeMillis() / 1000 - specification.getExecutionStartUnix();
+        int epochDuration = specification.getEpochDuration();
+        return Math.max((int) Math.floor(timeRunning / epochDuration) - 1, -1);
     }
 
     public String getID() {
         return id;
     }
 
-    public String getCode() {
-        return code;
+    public QubicSpecification getSpecification() {
+        return specification;
     }
 
-    public String getVersion() { return version; }
-
-    public int getExecutionStart() {
-        return executionStart;
-    }
-
-    public int getRunTimeLimit() {
-        return runtimeLimit;
-    }
-
-    public int getHashPeriodDuration() {
-        return hashPeriodDuration;
-    }
-
-    public int getResultPeriodDuration() {
-        return resultPeriodDuration;
-    }
-
-    public int getEpochDuration() {
-        return hashPeriodDuration + resultPeriodDuration;
-    }
 }
 
-class QubicTransactionVerificator {
+class QubicTransactionValidator {
 
-    protected static boolean verify(JSONObject qubicTx) {
+    private static final String[] ATTRIBUTES_TO_CHECK = {
+            TangleJSONConstants.QUBIC_CODE,
+            TangleJSONConstants.QUBIC_EXECUTION_START,
+            TangleJSONConstants.QUBIC_RUN_TIME_LIMIT,
+            TangleJSONConstants.QUBIC_HASH_PERIOD_DURATION,
+            TangleJSONConstants.QUBIC_RESULT_PERIOD_DURATION,
+    };
 
-        String[] attributes = {
-                TangleJSONConstants.VERSION,
-                TangleJSONConstants.QUBIC_CODE,
-                TangleJSONConstants.QUBIC_EXECUTION_START,
-                TangleJSONConstants.QUBIC_RUN_TIME_LIMIT,
-                TangleJSONConstants.QUBIC_HASH_PERIOD_DURATION,
-                TangleJSONConstants.QUBIC_RESULT_PERIOD_DURATION,
-                TangleJSONConstants.QUBIC_APPLICATION_ADDRESS,
-        };
+    static void throwExceptionIfInvalid(JSONObject qubicTransaction) {
+        ensureNotNull(qubicTransaction);
+        ensureHasVersion(qubicTransaction);
+        ensureVersionIsSupported(qubicTransaction);
+        validateStructure(qubicTransaction);
+    }
 
-        for(String attribute : attributes)
-            if(!qubicTx.has(attribute))
-                throw new InvalidQubicTransactionException(buildAttributeNotFoundErrorMessage(TangleJSONConstants.QUBIC_CODE), null);
+    private static void ensureNotNull(JSONObject qubicTransaction) {
+        if(qubicTransaction == null)
+            throw new InvalidQubicTransactionException("qubic transaction not found", null);
+    }
 
-        return false;
+    private static void validateStructure(JSONObject qubicTransaction) {
+
+        for(String attribute : ATTRIBUTES_TO_CHECK) {
+            if(!qubicTransaction.has(attribute))
+                throw new InvalidQubicTransactionException(buildAttributeNotFoundErrorMessage(attribute), null);
+        }
+    }
+
+    private static void ensureVersionIsSupported(JSONObject qubicTransaction) {
+        String version = String.valueOf(qubicTransaction.get(TangleJSONConstants.VERSION));
+        if(!GeneralConstants.VERSION.equals(version))
+            throw new UnsupportedVersionException(version);
+    }
+
+    private static void ensureHasVersion(JSONObject qubicTransaction) {
+        if(!qubicTransaction.has(TangleJSONConstants.VERSION))
+            throw new InvalidQubicTransactionException(buildAttributeNotFoundErrorMessage(TangleJSONConstants.VERSION), null);
     }
 
     private static String buildAttributeNotFoundErrorMessage(String attributeName) {

@@ -1,6 +1,7 @@
 package oracle;
 
 import qubic.QubicReader;
+import qubic.QubicSpecification;
 
 /**
  * @author microhash
@@ -36,9 +37,9 @@ public class OracleManager {
 
         state = State.PRE_EXECUTION;
 
-        if(ow.getQubicReader().getExecutionStart() > getUnixTimeStamp()) {
+        if(ow.getQubicReader().getSpecification().timeUntilExecutionStart() > 0) {
             ow.apply();
-            takeABreak(ow.getQubicReader().getExecutionStart() - getUnixTimeStamp());
+            takeABreak(ow.getQubicReader().getSpecification().timeUntilExecutionStart());
         }
 
         if(ow.assemble()) {
@@ -59,23 +60,20 @@ public class OracleManager {
         if(!qubic.getAssemblyList().contains(ow.getID()))
             return;
 
-        final long executionStart = qubic.getExecutionStart();
-        final int hashPeriodDuration = qubic.getHashPeriodDuration();
-        final int resultPeriodDuration = qubic.getResultPeriodDuration();
-        final int epochDuration = hashPeriodDuration + resultPeriodDuration;
+        QubicSpecification spec =  qubic.getSpecification();
 
         state = State.RUNNING;
         while(state != State.PAUSING) {
 
             final int e = determineEpochToRun();
-            final long epochStart = executionStart + e * epochDuration;
+            final long epochStart = spec.getExecutionStartUnix() + e * spec.getEpochDuration();
 
             // run hash epoch
             takeABreak(epochStart - getUnixTimeStamp());
             ow.doHashStatement(e);
 
             // run result epoch
-            takeABreak(epochStart - getUnixTimeStamp() + hashPeriodDuration);
+            takeABreak(epochStart - getUnixTimeStamp() + spec.getHashPeriodDuration());
             ow.doResultStatement();
         }
         state = State.PAUSED;
@@ -88,21 +86,13 @@ public class OracleManager {
      * */
     private int determineEpochToRun() {
 
-        final QubicReader qubic = ow.getQubicReader();
-
-        long executionStart = qubic.getExecutionStart();
-        int hashPeriodDuration = qubic.getHashPeriodDuration();
-        int resultPeriodDuration = qubic.getResultPeriodDuration();
-        int epochDuration = hashPeriodDuration + resultPeriodDuration;
-
-        long timeRunning = getUnixTimeStamp() - executionStart;
+        final QubicSpecification spec = ow.getQubicReader().getSpecification();
 
         // TODO base decision on runtime limit
         // skip running epoch if 30% of hash period is already over
-        double relOverTime = (double)(timeRunning%epochDuration)/hashPeriodDuration;
-        int skippedEpoches = relOverTime > 0.3 ? 1 : 0;
-
-        return (int)(timeRunning / epochDuration) + skippedEpoches;
+        double relOverTime = (double)(spec.ageOfExecutionPhase()%spec.getEpochDuration())/spec.getHashPeriodDuration();
+        int skippedEpochs = relOverTime > 0.3 ? 1 : 0;
+        return (spec.ageOfExecutionPhase() / spec.getEpochDuration()) + skippedEpochs;
     }
 
     /**

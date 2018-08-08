@@ -3,8 +3,6 @@ package qubic;
 import constants.TangleJSONConstants;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
-
 /**
  * @author microhash
  *
@@ -33,36 +31,28 @@ public class QubicManager extends Thread {
      * */
     public void startSynchronous() {
 
-        writer.publishQubicTx();
+        writer.publishQubicTransaction();
 
-        while(getTimeUntilAssemblyTransaction() > ASSEMBLY_TX_PUBLISHING_INTERVAL) {
+        while(writer.getSpecification().timeUntilExecutionStart() > ASSEMBLY_TX_PUBLISHING_INTERVAL) {
             writer.promote();
-            takeABreak(Math.min(PROMOTION_INTERVAL, getTimeUntilAssemblyTransaction() - ASSEMBLY_TX_PUBLISHING_INTERVAL));
+            takeABreak(Math.min(PROMOTION_INTERVAL, writer.getSpecification().timeUntilExecutionStart() - ASSEMBLY_TX_PUBLISHING_INTERVAL));
         }
 
         handleApplications();
-        writer.publishAssemblyTx();
+        writer.publishAssemblyTransaction();
     }
 
     /**
      * Autonomously checks applications and accepts applicants into the assembly.
-     * publishAssemblyTx() has to be called manually. Currently accepts every applicant,
+     * publishAssemblyTransaction() has to be called manually. Currently accepts every applicant,
      * no oracle is filtered out. TODO actually exclude some
      * */
     public void handleApplications() {
-        writer.fetchApplications();
-        for(JSONObject application : writer.getApplications()) {
+        for(JSONObject application : writer.fetchApplications()) {
             String applicantID = application.getString(TangleJSONConstants.ORACLE_ID);
             if(!writer.getAssembly().contains(applicantID))
                 writer.addToAssembly(applicantID);
         }
-    }
-
-    /**
-     * @return time in seconds until assembly transactiomn has to be published
-     * */
-    private int getTimeUntilAssemblyTransaction() {
-        return (int)(writer.getExecutionStart()-getUnixTimeStamp());
     }
 
     /**

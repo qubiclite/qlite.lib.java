@@ -27,7 +27,6 @@ public class TangleJSONConstants {
     public static final String QUBIC_ASSEMBLY = "assembly";
     public static final String QUBIC_CODE = "code";
     public static final String QUBIC_EXECUTION_START = "execution_start";
-    public static final String QUBIC_APPLICATION_ADDRESS = "application_address";
     public static final String QUBIC_HASH_PERIOD_DURATION = "hash_period_duration";
     public static final String QUBIC_RESULT_PERIOD_DURATION = "result_period_duration";
     public static final String QUBIC_RUN_TIME_LIMIT = "run_time_limit";
