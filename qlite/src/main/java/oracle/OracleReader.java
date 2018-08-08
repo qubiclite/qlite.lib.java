@@ -1,7 +1,7 @@
 package oracle;
 
 import constants.TangleJSONConstants;
-import exceptions.CorruptIAMStreamException;
+import iam.exceptions.CorruptIAMStreamException;
 import exceptions.InvalidStatementException;
 import jota.model.Transaction;
 import iam.IAMReader;
@@ -51,7 +51,7 @@ public class OracleReader {
      * @param epoch           epoch index for desired Statement
      * @return the fetched Statement, NULL if not existent or malformed
      * */
-    protected Statement readStatement(List<Transaction> preload, boolean isHashStatement, int epoch) {
+    Statement readStatement(List<Transaction> preload, boolean isHashStatement, int epoch) {
 
         HashMap map = (isHashStatement ? hashStatements : resultStatements);
         if(map.containsKey(epoch))
@@ -60,7 +60,7 @@ public class OracleReader {
         final IAMReader reader = isHashStatement ? iamHashes : iamResults;
 
         // read JSONObject from tangle stream
-        JSONObject statObj = reader.read(preload, epoch+1); // +1 because address for epoch #0 is ...999A, not 9999
+        JSONObject statObj = reader.readFromSelection(epoch+1, preload); // +1 because address for epoch #0 is ...999A, not 9999
         if(statObj == null)
             return null;
 

@@ -20,8 +20,8 @@ public class TangleJSONConstants {
     public static final String RESULT_STATEMENT_NONCE = "nonce";
 
     // IAMStream
-    public static final String TANGLE_PUBLISHER_CONTENT = "content";
-    public static final String TANGLE_PUBLISHER_SIGNATURE = "signature";
+    public static final String IAM_PACKET_MESSAGE = "content";
+    public static final String IAM_PACKET_SIGNATURE = "signature";
 
     // Qubic
     public static final String QUBIC_ASSEMBLY = "assembly";

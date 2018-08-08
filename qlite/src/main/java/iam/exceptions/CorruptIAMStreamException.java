@@ -1,4 +1,4 @@
-package exceptions;
+package iam.exceptions;
 
 public class CorruptIAMStreamException extends RuntimeException {
 

@@ -13,7 +13,7 @@ import java.security.spec.X509EncodedKeySpec;
  * Signer creates and validates signatures and manages the key pair. Signatures
  * are needed in order to authenticate the content and origin of data transactions.
  * */
-public class Signer extends SignatureValidator {
+public class Signer {
 
     private PrivateKey privateKey;
     private PublicKey publicKey;
@@ -21,8 +21,8 @@ public class Signer extends SignatureValidator {
 
     public Signer() throws NoSuchAlgorithmException {
         super();
-        generateKeys();
         signature = Signature.getInstance(SignatureConstants.SIGNATURE_ALGORITHM);
+        generateKeys();
     }
 
     /**
@@ -50,7 +50,7 @@ public class Signer extends SignatureValidator {
 
     /**
      * Creates a signature for a given message.
-     * @param message the message to be signed
+     * @param message the message to be signed, ASCII encoded
      * @return the signature encoded in trytes (encoder: TryteTool.bytesToTrytes()).
      * */
     public String sign(String message) {
@@ -58,9 +58,11 @@ public class Signer extends SignatureValidator {
         byte[] buffer = new byte[SignatureConstants.KEY_SIZE];
 
         try {
+
             // create signature
             for (byte b : msgBytes)
                 signature.update(buffer, 0, b);
+
             byte[] signatureBytes = signature.sign();
 
             // byte[] -> String
@@ -91,20 +93,19 @@ public class Signer extends SignatureValidator {
     /**
      * Sets the key pair to the encoded parameter keys.
      * @param privateKeyTrytes tryte encoded private key
-     * @param pubKeyTrytes  tryte encoded public key
+     * @param publicKeyTrytes  tryte encoded public key
      * */
-    public void loadKeysFromTrytes(String privateKeyTrytes, String pubKeyTrytes) {
+    public void loadKeysFromTrytes(String privateKeyTrytes, String publicKeyTrytes) throws InvalidKeySpecException {
 
-        byte[] privKeyBytes = TryteTool.trytesToBytes(privateKeyTrytes);
-        byte[] pubKeyBytes = TryteTool.trytesToBytes(pubKeyTrytes);
+        byte[] privateKeyBytes = TryteTool.trytesToBytes(privateKeyTrytes);
+        byte[] publicKeyBytes = TryteTool.trytesToBytes(publicKeyTrytes);
 
         try {
             KeyFactory kf = KeyFactory.getInstance(SignatureConstants.KEY_PAIR_GENERATOR_ALGORITHM);
-            privateKey = kf.generatePrivate(new PKCS8EncodedKeySpec(privKeyBytes));
-            publicKey = kf.generatePublic(new X509EncodedKeySpec(pubKeyBytes));
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            e.printStackTrace();
-            return;
+            privateKey = kf.generatePrivate(new PKCS8EncodedKeySpec(privateKeyBytes));
+            publicKey = kf.generatePublic(new X509EncodedKeySpec(publicKeyBytes));
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
         }
 
         initSignature();

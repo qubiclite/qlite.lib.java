@@ -6,37 +6,35 @@ import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 
-public class SignatureValidator {
+public enum SignatureValidator {;
 
-    private KeyFactory keyFactory;
+    private static final KeyFactory keyFactory;
+
+    static {
+        try {
+            keyFactory = KeyFactory.getInstance(SignatureConstants.KEY_PAIR_GENERATOR_ALGORITHM);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     /**
      * Verifies the correctness of a signature for a certain message and public key.
-     * @param pubKeyTrytes    the public key encoded in trytes (encoder: TryteTool.bytesToTrytes())
+     * @param publicKeyTrytes the public key encoded in trytes (encoder: TryteTool.bytesToTrytes())
      * @param signatureTrytes the signature encoded in trytes (encoder: TryteTool.bytesToTrytes())
      * @param message         the message for which the signature was created
      * @return TRUE = valid/correct signature, FALSE = invalid/incorrect signature
      * */
-    public boolean validate(String pubKeyTrytes, String signatureTrytes, String message) {
+    public static boolean validate(String publicKeyTrytes, String signatureTrytes, String message) {
 
-        if(keyFactory == null)
-            try {
-                keyFactory = KeyFactory.getInstance(SignatureConstants.KEY_PAIR_GENERATOR_ALGORITHM);
-            } catch (NoSuchAlgorithmException e) {
-                throw new RuntimeException(e);
-            }
+        byte[] publicKeyBytes = TryteTool.trytesToBytes(publicKeyTrytes);
+        byte[] signatureBytes = TryteTool.trytesToBytes(signatureTrytes);
 
-        byte[] pubKeyBytes;
-        byte[] signatureBytes;
-
-        pubKeyBytes = TryteTool.trytesToBytes(pubKeyTrytes);
-        signatureBytes = TryteTool.trytesToBytes(signatureTrytes);
-
-        X509EncodedKeySpec pubKeySpec = new X509EncodedKeySpec(pubKeyBytes);
-        PublicKey pubKey;
+        X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+        PublicKey publicKey;
 
         try {
-            pubKey =  keyFactory.generatePublic(pubKeySpec);;
+            publicKey =  keyFactory.generatePublic(publicKeySpec);;
         } catch (InvalidKeySpecException e) {
             return false;
         }
@@ -50,7 +48,7 @@ public class SignatureValidator {
         }
 
         try {
-            signature.initVerify(pubKey);
+            signature.initVerify(publicKey);
         } catch (InvalidKeyException e) {
             e.printStackTrace();
             return false;

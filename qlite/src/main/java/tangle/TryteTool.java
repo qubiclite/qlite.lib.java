@@ -10,6 +10,12 @@ import org.apache.commons.lang3.StringUtils;
  * */
 public class TryteTool {
 
+    public static final String NINE_ADDRESS = StringUtils.repeat('9', 81);
+    public static final int TRYTES_PER_ADDRESS = 81;
+    public static final int TRYTES_PER_HASH = 81;
+    public static final int TRYTES_PER_BYTE = 2;
+    public static final int TRYTES_PER_TRANSACTION_MESSAGE = 2187;
+
     private static final char[] chars = "9ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
 
     /**

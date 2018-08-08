@@ -1,6 +1,6 @@
 package tangle;
 
-import org.junit.Assert;
+import static org.junit.Assert.*;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -22,7 +22,7 @@ public class TryteToolTest {
         String trytes = TryteTool.bytesToTrytes(originalBytes);
         byte[] decodedBytes = TryteTool.trytesToBytes(trytes);
 
-        Assert.assertArrayEquals(originalBytes, decodedBytes);
+        assertArrayEquals(originalBytes, decodedBytes);
     }
 
     /**
@@ -35,7 +35,7 @@ public class TryteToolTest {
         String trytes = TryteTool.bytesToTrytes(bytes);
 
         try {
-            Assert.assertTrue(trytes.matches(TRYTE_REGEX));
+            assertTrue(trytes.matches(TRYTE_REGEX));
         } catch (AssertionError e) {
             System.out.println("no tryte sequence: '"+trytes+"'");
             System.out.println("byte array:         "+Arrays.toString(bytes));

@@ -9,8 +9,8 @@ import jota.model.Input;
 import jota.model.Transaction;
 import jota.model.Transfer;
 import jota.utils.TrytesConverter;
-import org.apache.commons.lang3.StringUtils;
 
+import java.security.InvalidParameterException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -24,9 +24,8 @@ import java.util.Map;
  * */
 public class TangleAPI {
 
-    private static TangleAPI instance = new TangleAPI("https", "nodes.testnet.iota.org", "443", 9, false);
+    private static TangleAPI instance = new TangleAPI("https", "nodes.devnet.iota.org", "443", 9, true);
 
-    private static final String DEFAULT_ADDRESS = StringUtils.repeat('9', 81);
     private static final String TAG = "QLITE9999999999999999999999";
 
     private final IotaAPI api;
@@ -73,18 +72,14 @@ public class TangleAPI {
     /**
      * Sends a data transaction to the tangle. Keeps trying until there is no error.
      * @param address the address to which the transaction shall be attached
-     * @param data    the data included in the transaction
-     * @param convert indicates the encoding of parameter 'data':
-     *                TRUE: data is ASCII string -> convert to trytes
-     *                FALSE: data is already encoded in trytes -> publish raw
+     * @param tryteMessage the transaction message (in trytes)
      * @return transaction hash of sent transaction
      * */
-    public String sendTransaction(String address, String data, boolean convert) {
+    public String sendTrytes(String address, String tryteMessage) {
 
         LinkedList<Input> inputs = new LinkedList<>();
         LinkedList<Transfer> transfers = new LinkedList<>();
-        String message = convert ? TrytesConverter.toTrytes(data) : data;
-        transfers.add(new Transfer(address, 0, message, TAG));
+        transfers.add(new Transfer(address, 0, tryteMessage, TAG));
 
         while (true) {
             try {
@@ -102,8 +97,16 @@ public class TangleAPI {
         }
     }
 
-    public String sendTransaction(String data, boolean convert) {
-        return sendTransaction(DEFAULT_ADDRESS, data, convert);
+    public String sendTrytes(String tryteMessage) {
+        return sendTrytes(TryteTool.NINE_ADDRESS, tryteMessage);
+    }
+
+    public String sendMessage(String message) {
+        return sendMessage(TryteTool.NINE_ADDRESS, message);
+    }
+
+    public String sendMessage(String address, String message) {
+        return sendTrytes(address, TrytesConverter.toTrytes(message));
     }
 
     /**
@@ -132,7 +135,7 @@ public class TangleAPI {
 
     /**
      * Reads the messages of all transaction published to a certain address.
-     * @param preload resource of prefetched transactions for efficiency purposes, optional (set to null if not required)
+     * @param preload resource of pre-fetched transactions for efficiency purposes, optional (set to null if not required)
      * @param address the address to check
      * @param convert convert the message trytes to ascii before returning?
      * @return transaction messages mapped by transaction hash of all transactions found
@@ -150,24 +153,33 @@ public class TangleAPI {
 
         Map<String, String> map = new HashMap<>();
 
-        for(int i = 0; i < transactions.size(); i++) {
-            String trytes = transactions.get(i).getSignatureFragments();
+        for(Transaction tx : transactions) {
+            String trytes = tx.getSignatureFragments();
             trytes = trytes.split("99")[0];
             if(trytes.length()%2 == 1) trytes += "9";
             String message = convert ? TrytesConverter.toString(trytes) : trytes;
 
-            map.put(transactions.get(i).getHash(), message);
+            map.put(tx.getHash(), message);
         }
         return map;
+    }
+
+    public String readTransactionMessage(String hash) {
+        return TrytesConverter.toString(readTransactionTrytes(hash));
     }
 
     /**
      * Finds the transaction with a certain hash.
      * @param hash    the hash of the requested transaction
-     * @param convert convert the message trytes to ascii before returning?
      * @return transaction messages of the transaction found, NULL if not found
      * */
-    public String readTransactionMessage(String hash, boolean convert) {
+    public String readTransactionTrytes(String hash) {
+
+        if(!TryteTool.isTryteSequence(hash))
+            throw new InvalidParameterException("parameter hash is not a tryte sequence");
+        if(hash.length() != 81)
+            throw new InvalidParameterException("parameter hash is required to be exactly 81 trytes long");
+
         String[] hashes = {hash};
         List<Transaction> transactions = null;
 
@@ -193,7 +205,7 @@ public class TangleAPI {
         trytes = trytes.split("99")[0];
         if(trytes.length()%2 == 1) trytes += "9";
 
-        return convert ? TrytesConverter.toString(trytes) : trytes;
+        return trytes;
     }
 
     /**

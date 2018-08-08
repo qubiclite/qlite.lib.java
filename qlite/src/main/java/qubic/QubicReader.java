@@ -2,7 +2,7 @@ package qubic;
 
 import constants.GeneralConstants;
 import constants.TangleJSONConstants;
-import exceptions.CorruptIAMStreamException;
+import iam.exceptions.CorruptIAMStreamException;
 import exceptions.InvalidQubicTransactionException;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;

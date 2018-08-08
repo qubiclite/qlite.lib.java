@@ -1,6 +1,6 @@
 package iam.signing;
 
-class SignatureConstants {
+enum SignatureConstants {;
 
     static final int KEY_SIZE = 1024;
     static final String KEY_PAIR_GENERATOR_ALGORITHM = "DSA";

@@ -7,6 +7,7 @@ import org.json.JSONObject;
 import tangle.TangleAPI;
 import tangle.TryteTool;
 
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 
 /**
@@ -58,7 +59,7 @@ public class QubicWriter {
      * @param id            IAMStream identity of the qubic
      * @param privKeyTrytes tryte encoded private key
      * */
-    public QubicWriter(String id, String privKeyTrytes) {
+    public QubicWriter(String id, String privKeyTrytes) throws InvalidKeySpecException {
 
         publisher = new IAMWriter(id, privKeyTrytes);
 
@@ -111,7 +112,7 @@ public class QubicWriter {
      * */
     public void promote() {
         String address = TryteTool.buildCurrentQubicPromotionAddress();
-        TangleAPI.getInstance().sendTransaction(address, publisher.getID(), false);
+        TangleAPI.getInstance().sendTrytes(address, publisher.getID());
     }
 
     /**

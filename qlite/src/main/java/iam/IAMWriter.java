@@ -1,15 +1,16 @@
 package iam;
 
 import constants.TangleJSONConstants;
-import exceptions.CorruptIAMStreamException;
+import iam.exceptions.CorruptIAMStreamException;
+import iam.exceptions.IAMPacketSizeLimitExceeded;
 import iam.signing.Signer;
-import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
 import tangle.TangleAPI;
 import tangle.TryteTool;
 
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 
 /**
  * @author microhash
@@ -23,43 +24,74 @@ public class IAMWriter extends IAMStream {
     private final String id;
     private final Signer signer = createSigner();
 
+    private static final int MAX_CHARS_PER_FRAGMENT = TryteTool.TRYTES_PER_TRANSACTION_MESSAGE / TryteTool.TRYTES_PER_BYTE; // = BYTES PER TRANSACTION
+
     /**
-     * Creates a key pair and attaches the public key to the tangle.
-     * The resulting transaction hash serves as ID for this object.
+     * Creates a new key pair and attaches the public key to the tangle.
+     * The resulting transaction hash serves as ID for the IAM Stream.
      * */
     public IAMWriter() {
-        id = TangleAPI.getInstance().sendTransaction(signer.getPublicKeyTrytes(), false);
+        String publicKeyTrytes = signer.getPublicKeyTrytes();
+        id = TangleAPI.getInstance().sendTrytes(publicKeyTrytes);
     }
 
     /**
-     * Loads an existent IAMWriter whose identity has already been
-     * published to the tangle.
-     * @param id id of the IAMStream
-     * @param privateKeyTrytes the private key encoded in trytes
+     * Loads an existent IAMWriter whose identity has already been published to the tangle.
+     * @param id               IAM stream ID (transaction hash of the root transaction containing the public key)
+     * @param privateKeyTrytes the private key encoded to trytes
+     * @throws NullPointerException      if id is null
+     * @throws InvalidParameterException if id is not tryte sequence of length 81
+     * @throws CorruptIAMStreamException if cannot find root transaction (transaction whose hash is the id)
+     * @throws InvalidKeySpecException   if key specification is invalid
      * */
-    public IAMWriter(String id, String privateKeyTrytes) {
+    public IAMWriter(String id, String privateKeyTrytes) throws InvalidKeySpecException {
         validateID(id);
         this.id = id;
         initSignerKeys(id, privateKeyTrytes);
     }
 
     /**
-     * Initializes the signer's keys by fetching the public key from the IAM root transaction.
-     * @throws CorruptIAMStreamException if cannot find root transaction
+     * Signs and attaches a JSONObject to the tangle. The tangle address is deterministically derived from the attribute 'id'.
+     * The derivation method is documented in the Qubic Lite whitepaper (http://qubiclite.org/whitepaper.pdf).
+     * @param index   the index at which the message shall be attached in the IAM stream
+     * @param message the jsonObject to attach, .toString() has to return an ASCII encoded string
+     * @return hash of sent iota transaction
+     * @throws InvalidParameterException if index is negative
      * */
-    private void initSignerKeys(String id, String privateKeyTrytes) {
-        String publicKeyTrytes = TangleAPI.getInstance().readTransactionMessage(id, false);
+    public String publish(int index, JSONObject message) {
+        if(index < 0)
+            throw new InvalidParameterException("parameter index cannot be negative");
+        if(!isAsciiString(message.toString()))
+            throw new InvalidParameterException("parameter message contains non-ascii characters");
+        String signature = generateIAMPacketSignature(index, message);
+        JSONObject iamPacket = buildIAMPacket(signature, message);
+        return publishIAMPacketInFragments(iamPacket.toString(), buildAddress(index));
+    }
+
+    public String getID() {
+        return id;
+    }
+
+    public String getPrivateKeyTrytes() {
+        return signer.getPrivateKeyTrytes();
+    }
+
+    private boolean isAsciiString(String s) {
+        for (char c : s.toCharArray()) {
+            if (((int)c) > 127) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void initSignerKeys(String id, String privateKeyTrytes) throws InvalidKeySpecException {
+        String publicKeyTrytes = TangleAPI.getInstance().readTransactionTrytes(id);
         if(publicKeyTrytes == null)
             throw new CorruptIAMStreamException("failed loading base transaction for IAM stream: '"+id+"'", null);
         signer.loadKeysFromTrytes(privateKeyTrytes, publicKeyTrytes);
     }
 
-    /**
-     * Throws exceptions if parameter id cannot be a transaction hash (tryte sequence of length 81).
-     * @param id IAM stream ID to validate
-     * @throws NullPointerException if id is null
-     * @throws InvalidParameterException if id is not tryte sequence of length 81
-     * */
     private static void validateID(String id) {
         if(id == null)
             throw new NullPointerException("parameter id is null");
@@ -69,7 +101,7 @@ public class IAMWriter extends IAMStream {
             throw new InvalidParameterException("parameter id is required to be exactly 81 trytes long");
     }
 
-    private Signer createSigner() {
+    private static Signer createSigner() {
         try {
             return new Signer();
         } catch (NoSuchAlgorithmException e) {
@@ -77,49 +109,59 @@ public class IAMWriter extends IAMStream {
         }
     }
 
-    /**
-     * Attaches a signed JSONObject to the tangle. The publishing tangle address
-     * used for this is deterministically derived from the attribute 'id'.
-     * @param content the jsonObject to attach
-     * @return hash of sent iota transaction
-     * */
-    public String publish(int index, JSONObject content) {
-        JSONObject messageContainer = new JSONObject();
-        messageContainer.put(TangleJSONConstants.TANGLE_PUBLISHER_CONTENT,  content);
-        messageContainer.put(TangleJSONConstants.TANGLE_PUBLISHER_SIGNATURE, signer.sign(index + "!" + content.toString()));
-        return sendDataInFragments(index, messageContainer);
+    private String generateIAMPacketSignature(int index, JSONObject message) {
+        String stringToSign = buildStringToSignForIAMPacket(index, message);
+        return signer.sign(stringToSign);
     }
 
-    private String sendDataInFragments(int index, JSONObject data) {
-        String dataString = data.toString();
+    private JSONObject buildIAMPacket(String signature, JSONObject message) {
+        JSONObject iamPacket = new JSONObject();
+        iamPacket.put(TangleJSONConstants.IAM_PACKET_MESSAGE,  message);
+        iamPacket.put(TangleJSONConstants.IAM_PACKET_SIGNATURE, signature);
+        return iamPacket;
+    }
 
-        final int FRAGMENT_LENGTH = (2187)/2;
+    private static String publishIAMPacketInFragments(String iamPacketString, String address) {
 
-        for(int i = dataString.length(); i >= 0; i-=FRAGMENT_LENGTH) {
+        String[] fragments = fragmentIAMPacket(iamPacketString);
+        StringBuilder hashBlock = new StringBuilder();
 
-            boolean last = i-FRAGMENT_LENGTH <= 0;
-
-            // publish fragment
-            String subString = dataString.substring(Math.max(i-FRAGMENT_LENGTH, 0), i);
-            String address = last ? buildAddress(index) : StringUtils.repeat('9', 81);
-            String hash = TangleAPI.getInstance().sendTransaction(address, subString, true);
-
-            // finish if last
-            if(last) return hash;
-
-            // append hash to next transaction
-            dataString = dataString.substring(0, i-FRAGMENT_LENGTH) + hash+">";
-            i += 82;
+        for(int i = fragments.length-1; i >= 1; i--) {
+            String hash = TangleAPI.getInstance().sendMessage(fragments[i]);
+            hashBlock.insert(0, hash);
         }
-        // something went wrong?
-        return null;
+
+        fragments[0] = hashBlock + fragments[0];
+        return TangleAPI.getInstance().sendMessage(address, fragments[0]);
     }
 
-    public String getID() {
-        return id;
+    private static String[] fragmentIAMPacket(String iamPacketString) {
+
+        int amountOfFragments = predictAmountOfFragments(iamPacketString.length());
+
+        if(amountOfFragments > MAX_FRAGMENTS_PER_IAM_PACKET)
+            throw new IAMPacketSizeLimitExceeded();
+
+        int hashBlockLength = TryteTool.TRYTES_PER_HASH * (amountOfFragments-1);
+        String[] fragments = new String[amountOfFragments];
+
+        fragments[0] = iamPacketString.substring(0, Math.min(iamPacketString.length(), MAX_CHARS_PER_FRAGMENT-hashBlockLength));
+        for(int fragmentIndex = 1; fragmentIndex < fragments.length; fragmentIndex++) {
+            int cutStart = fragmentIndex * MAX_CHARS_PER_FRAGMENT - hashBlockLength;
+            int cutEnd = Math.min(iamPacketString.length(), cutStart + MAX_CHARS_PER_FRAGMENT);
+            fragments[fragmentIndex] = iamPacketString.substring(cutStart, cutEnd);
+        }
+
+        return fragments;
     }
 
-    public String getPrivateKeyTrytes() {
-        return signer.getPrivateKeyTrytes();
+    private static int predictAmountOfFragments(int contentLength) {
+        int oldEstimate = 0, newEstimate = 1;
+        while (oldEstimate != newEstimate) {
+            oldEstimate = newEstimate;
+            int hashBlockLengthEstimate = TryteTool.TRYTES_PER_HASH * (oldEstimate-1);
+            newEstimate = (int)Math.ceil((double)(contentLength + hashBlockLengthEstimate)/MAX_CHARS_PER_FRAGMENT);
+        }
+        return newEstimate;
     }
 }

@@ -1,7 +1,7 @@
 package oracle;
 
 import constants.TangleJSONConstants;
-import exceptions.CorruptIAMStreamException;
+import iam.exceptions.CorruptIAMStreamException;
 import iam.IAMWriter;
 import qlvm.QLVM;
 import org.json.JSONObject;
@@ -11,6 +11,7 @@ import oracle.statements.ResultStatement;
 import tangle.TangleAPI;
 import tangle.TryteTool;
 
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 
@@ -67,7 +68,7 @@ public class OracleWriter {
      * @param resStatPubId      IAM stream identity of result stream
      * @param resPrivKeyTrytes  tryte encoded private key of result stream
      * */
-    public OracleWriter(QubicReader qubicReader, String hashStatPubId, String hashPrivKeyTrytes, String resStatPubId, String resPrivKeyTrytes) {
+    public OracleWriter(QubicReader qubicReader, String hashStatPubId, String hashPrivKeyTrytes, String resStatPubId, String resPrivKeyTrytes) throws InvalidKeySpecException {
 
         this.qubicReader = qubicReader;
         resultStream = new IAMWriter(resStatPubId, resPrivKeyTrytes);
@@ -131,7 +132,7 @@ public class OracleWriter {
         JSONObject application = new JSONObject();
         application.put(TangleJSONConstants.ORACLE_ID, resultStream.getID());
         application.put(TangleJSONConstants.ORACLE_NAME, name);
-        TangleAPI.getInstance().sendTransaction(qubicReader.getApplicationAddress(), application.toString(), true);
+        TangleAPI.getInstance().sendMessage(qubicReader.getApplicationAddress(), application.toString());
     }
 
     /**
