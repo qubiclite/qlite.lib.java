@@ -17,10 +17,10 @@ class IAMPacketFilter {
 
     private boolean used = false;
     private final IAMReader iamReader;
-    private final int index;
+    private final IAMIndex index;
     private List<Transaction> selection = null;
 
-    IAMPacketFilter(IAMReader iamReader, int index) {
+    IAMPacketFilter(IAMReader iamReader, IAMIndex index) {
         this.iamReader = iamReader;
         this.index = index;
     }

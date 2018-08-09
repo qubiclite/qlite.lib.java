@@ -7,7 +7,6 @@ import jota.model.Transaction;
 import org.json.JSONObject;
 import tangle.TangleAPI;
 
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -35,7 +34,7 @@ public class IAMReader extends IAMStream {
         }
     }
 
-    public JSONObject read(int index) {
+    public JSONObject read(IAMIndex index) {
         return readFromSelection(index, null);
     }
 
@@ -45,7 +44,7 @@ public class IAMReader extends IAMStream {
      * @param index     the index for which the message shall be fetched
      * @return the read JSONObject, NULL if no transaction with a valid signature found.
      * */
-    public JSONObject readFromSelection(int index, List<Transaction> selection) {
+    public JSONObject readFromSelection(IAMIndex index, List<Transaction> selection) {
 
         IAMPacketFilter iamPacketFilter = new IAMPacketFilter(this, index);
         iamPacketFilter.setSelection(selection);
@@ -65,7 +64,7 @@ public class IAMReader extends IAMStream {
         return consensusPacket != null ? consensusPacket.getMessage() : null;
     }
 
-    boolean isValidIAMPacket(int index, IAMPacket iamPacket) {
+    boolean isValidIAMPacket(IAMIndex index, IAMPacket iamPacket) {
         if(iamPacket == null)
             return false;
         return SignatureValidator.validate(publicKeyTrytes, iamPacket.getSignature(), buildStringToSignForIAMPacket(index, iamPacket.getMessage()));

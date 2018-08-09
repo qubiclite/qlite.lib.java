@@ -1,6 +1,7 @@
 package oracle;
 
 import constants.TangleJSONConstants;
+import iam.IAMKeywordWriter;
 import iam.exceptions.CorruptIAMStreamException;
 import iam.IAMWriter;
 import qlvm.QLVM;
@@ -12,7 +13,6 @@ import tangle.TangleAPI;
 import tangle.TryteTool;
 
 import java.security.spec.InvalidKeySpecException;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -25,8 +25,10 @@ import java.util.List;
  * */
 public class OracleWriter {
 
-    private final IAMWriter resultStream;
-    private final IAMWriter hashStream;
+    static final String ORACLE_RESULT_STREAM_KEYWORD = "RESULTS", ORACLE_HASH_STREAM_KEYWORD = "HASHES";
+
+    private final IAMWriter writer;
+    private final IAMKeywordWriter resultWriter, hashWriter;
 
     private final Assembly assembly;
     private final QubicReader qubicReader;
@@ -51,29 +53,22 @@ public class OracleWriter {
 
         this.qubicReader = qubicReader;
         assembly = new Assembly(qubicReader);
-        resultStream = new IAMWriter();
-        hashStream = new IAMWriter();
-
-        JSONObject obj = new JSONObject();
-        obj.put(TangleJSONConstants.ORACLE_RESULT_STREAM, resultStream.getID());
-        obj.put(TangleJSONConstants.ORACLE_HASH_STREAM, hashStream.getID());
-        resultStream.publish(0, obj);
-        hashStream.publish(0, obj);
+        writer = new IAMWriter();
+        resultWriter = new IAMKeywordWriter(writer, ORACLE_RESULT_STREAM_KEYWORD);
+        hashWriter = new IAMKeywordWriter(writer, ORACLE_HASH_STREAM_KEYWORD);
     }
 
     /**
      * Recreates an already existing Qubic by its IAMStream identity.
      * @param qubicReader       qubic to be processed
-     * @param hashStatPubId     IAM stream identity of hash stream
-     * @param hashPrivKeyTrytes tryte encoded private key of hash stream
-     * @param resStatPubId      IAM stream identity of result stream
-     * @param resPrivKeyTrytes  tryte encoded private key of result stream
+     * @param writer            IAM stream of the oracle
      * */
-    public OracleWriter(QubicReader qubicReader, String hashStatPubId, String hashPrivKeyTrytes, String resStatPubId, String resPrivKeyTrytes) throws InvalidKeySpecException {
+    public OracleWriter(QubicReader qubicReader, IAMWriter writer) throws InvalidKeySpecException {
 
         this.qubicReader = qubicReader;
-        resultStream = new IAMWriter(resStatPubId, resPrivKeyTrytes);
-        hashStream = new IAMWriter(hashStatPubId, hashPrivKeyTrytes);
+        this.writer = writer;
+        resultWriter = new IAMKeywordWriter(writer, ORACLE_RESULT_STREAM_KEYWORD);
+        hashWriter = new IAMKeywordWriter(writer, ORACLE_HASH_STREAM_KEYWORD);
         assembly = new Assembly(qubicReader);
     }
 
@@ -104,7 +99,7 @@ public class OracleWriter {
         int[] ratings = assembly.getRatings();
         HashStatement hashEpoch = new HashStatement(epochIndex, hash, ratings);
 
-        hashStream.publish(epochIndex+1, hashEpoch.toJSON()); // +1 because epoch #0 has address …999A not …9999
+        hashWriter.publish(epochIndex+1, hashEpoch.toJSON()); // +1 because epoch #0 has address …999A not …9999
     }
 
 
@@ -118,7 +113,7 @@ public class OracleWriter {
 
         //if(epochIndex > 0) assembly.determineQuorumBasedResult(epochIndex-1);
         ResultStatement resultEpoch = new ResultStatement(epochIndex, ""+epochResult, epochNonce);
-        resultStream.publish(epochIndex+1, resultEpoch.toJSON()); // +1 because epoch #0 has address …999A not …9999
+        resultWriter.publish(epochIndex+1, resultEpoch.toJSON()); // +1 because epoch #0 has address …999A not …9999
     }
 
     /**
@@ -137,7 +132,7 @@ public class OracleWriter {
 
     private JSONObject generateApplication() {
         JSONObject application = new JSONObject();
-        application.put(TangleJSONConstants.ORACLE_ID, resultStream.getID());
+        application.put(TangleJSONConstants.ORACLE_ID, getID());
         application.put(TangleJSONConstants.ORACLE_NAME, name);
         return application;
     }
@@ -191,24 +186,14 @@ public class OracleWriter {
         oracleListeners.remove(oracleListener);
     }
 
-    public String getHashStreamID() {
-        return hashStream.getID();
-    }
-
-    public String getResultStreamID() {
-        return resultStream.getID();
-    }
-
-    public String getHashPrivateKeyTrytes() { return hashStream.getPrivateKeyTrytes(); }
-
-    public String getResultPrivateKeyTrytes() { return resultStream.getPrivateKeyTrytes(); }
+    public IAMWriter getIAMWriter() { return writer; }
 
     public Assembly getAssembly() {
         return assembly;
     }
 
     public String getID() {
-        return resultStream.getID();
+        return writer.getID();
     }
 
     public QubicReader getQubicReader() {

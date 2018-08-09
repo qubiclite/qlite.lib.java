@@ -1,6 +1,7 @@
 package qubic;
 
 import constants.TangleJSONConstants;
+import iam.IAMIndex;
 import iam.IAMWriter;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,15 +24,18 @@ import java.util.List;
 
 public class QubicWriter {
 
-    private IAMWriter publisher;
+    static final IAMIndex QUBIC_TRANSACTION_IAM_INDEX = new IAMIndex(0);
+    static final IAMIndex ASSEMBLY_TRANSACTION_IAM_INDEX = new IAMIndex(1);
+
+    private IAMWriter writer;
     private final ArrayList<String> assembly = new ArrayList<>();
-    private String qubicTxHash, assemblyTxHash;
+    private String qubicTransactionHash, assemblyTransactionHash;
     private final EditableQubicSpecification specification;
 
     private QubicWriterState state = QubicWriterState.PRE_ASSEMBLY_PHASE;
 
     public QubicWriter() {
-        publisher = new IAMWriter();
+        writer = new IAMWriter();
         specification = new EditableQubicSpecification();
     }
 
@@ -41,7 +45,7 @@ public class QubicWriter {
      * @param privateKeyTrytes tryte encoded private key
      * */
     public QubicWriter(String id, String privateKeyTrytes) throws InvalidKeySpecException {
-        publisher = new IAMWriter(id, privateKeyTrytes);
+        writer = new IAMWriter(id, privateKeyTrytes);
         QubicReader qr = new QubicReader(id);
         specification = new EditableQubicSpecification(qr.getSpecification());
         state = determineQubicWriterStateFromQubicReader(qr);
@@ -65,7 +69,7 @@ public class QubicWriter {
 
         specification.throwExceptionIfInvalid();
         JSONObject qubicTransactionJSON = specification.generateQubicTransactionJSON();
-        qubicTxHash = publisher.publish(0, qubicTransactionJSON);
+        qubicTransactionHash = writer.publish(QUBIC_TRANSACTION_IAM_INDEX, qubicTransactionJSON);
         state = QubicWriterState.ASSEMBLY_PHASE;
     }
 
@@ -74,7 +78,7 @@ public class QubicWriter {
      * */
     public void promote() {
         String address = TryteTool.buildCurrentQubicPromotionAddress();
-        TangleAPI.getInstance().sendTrytes(address, publisher.getID());
+        TangleAPI.getInstance().sendTrytes(address, writer.getID());
     }
 
     /**
@@ -84,12 +88,12 @@ public class QubicWriter {
     public synchronized void publishAssemblyTransaction() {
         throwExceptionIfCannotPublishAssemblyTransaction();
         JSONObject assemblyTransaction = generateAssemblyTransaction(assembly);
-        assemblyTxHash = publisher.publish(1, assemblyTransaction);
+        assemblyTransactionHash = writer.publish(ASSEMBLY_TRANSACTION_IAM_INDEX, assemblyTransaction);
         state = QubicWriterState.EXECUTION_PHASE;
     }
 
     public String getID() {
-        return publisher.getID();
+        return writer.getID();
     }
 
     /**
@@ -132,15 +136,15 @@ public class QubicWriter {
         return (qr.getSpecification().getExecutionStartUnix() < System.currentTimeMillis()/1000) ? QubicWriterState.ABORTED : QubicWriterState.ASSEMBLY_PHASE;
     }
 
-    public String getQubicTxHash() {
-        return qubicTxHash;
+    public String getQubicTransactionHash() {
+        return qubicTransactionHash;
     }
 
-    public String getAssemblyTxHash() {
-        return assemblyTxHash;
+    public String getAssemblyTransactionHash() {
+        return assemblyTransactionHash;
     }
 
-    public String getPrivateKeyTrytes() { return publisher.getPrivateKeyTrytes(); }
+    public String getPrivateKeyTrytes() { return writer.getPrivateKeyTrytes(); }
 
     public ArrayList<String> getAssembly() {
         return assembly;

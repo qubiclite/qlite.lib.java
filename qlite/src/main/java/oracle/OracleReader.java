@@ -1,6 +1,7 @@
 package oracle;
 
-import constants.TangleJSONConstants;
+import iam.IAMIndex;
+import iam.IAMKeywordReader;
 import iam.exceptions.CorruptIAMStreamException;
 import exceptions.InvalidStatementException;
 import jota.model.Transaction;
@@ -23,8 +24,8 @@ import java.util.List;
  * */
 public class OracleReader {
 
-    private final IAMReader iamResults;
-    private final IAMReader iamHashes;
+    private final IAMReader reader;
+    private final IAMKeywordReader resultReader, hashReader;
 
     // a list of all already fetched valid statements (for efficiency purposes)
     private final HashMap<Integer, ResultStatement> resultStatements = new HashMap<>();
@@ -32,14 +33,12 @@ public class OracleReader {
 
     /**
      * Initializes TangleReaders for HashStatements and ResultStatements.
-     * @param resultsRoot root of oracles result tangle stream
+     * @param id IAM stream ID (= hash of IAM stream's root transaction)
      * */
-    public OracleReader(String resultsRoot) throws CorruptIAMStreamException {
-        iamResults = new IAMReader(resultsRoot);
-
-        // reads oracle specification transaction to find root of HashStatement mam channel
-        JSONObject oracleSpecTxObj = iamResults.read(0);
-        iamHashes = new IAMReader(oracleSpecTxObj.getString(TangleJSONConstants.ORACLE_HASH_STREAM)); // TODO check if exists
+    public OracleReader(String id) throws CorruptIAMStreamException {
+        reader = new IAMReader(id);
+        resultReader = new IAMKeywordReader(reader, OracleWriter.ORACLE_RESULT_STREAM_KEYWORD);
+        hashReader = new IAMKeywordReader(reader, OracleWriter.ORACLE_HASH_STREAM_KEYWORD);
     }
 
     /**
@@ -57,7 +56,7 @@ public class OracleReader {
         if(map.containsKey(epoch))
             return (Statement)map.get(epoch);
 
-        final IAMReader reader = isHashStatement ? iamHashes : iamResults;
+        final IAMKeywordReader reader = isHashStatement ? hashReader : resultReader;
 
         // read JSONObject from tangle stream
         JSONObject statObj = reader.readFromSelection(epoch+1, preload); // +1 because address for epoch #0 is ...999A, not 9999
@@ -85,14 +84,14 @@ public class OracleReader {
     }
 
     public String getID() {
-        return iamResults.getID();
+        return reader.getID();
     }
 
-    public IAMReader getHashIAMStream() {
-        return iamHashes;
+    public IAMKeywordReader getResultReader() {
+        return resultReader;
     }
 
-    public IAMReader getResultIAMStream() {
-        return iamResults;
+    public IAMKeywordReader getHashReader() {
+        return hashReader;
     }
 }

@@ -22,7 +22,8 @@ public class IAMReaderTest {
         testPublishAndReadObject(4, StringUtils.repeat("ok!\"9\'$3", 200));
     }
 
-    private void testPublishAndReadObject(int index, Object object) {
+    private void testPublishAndReadObject(int position, Object object) {
+        IAMIndex index = new IAMIndex(position);
         JSONObject sent = new JSONObject();
         sent.put("object", object);
         String hash = iamWriter.publish(index, sent);
@@ -38,13 +39,13 @@ public class IAMReaderTest {
         JSONObject message2 = new JSONObject();
         message2.put("planet", "venus");
 
-        iamWriter.publish(100, message1);
-        assertNotNull(iamReader.read(100));
+        iamWriter.publish(new IAMIndex(100), message1);
+        assertNotNull(iamReader.read(new IAMIndex(100)));
 
-        iamWriter.publish(100, message1);
-        assertNotNull(iamReader.read(100));
+        iamWriter.publish(new IAMIndex(100), message1);
+        assertNotNull(iamReader.read(new IAMIndex(100)));
 
-        iamWriter.publish(100, message2);
-        assertNull(iamReader.read(100));
+        iamWriter.publish(new IAMIndex(100), message2);
+        assertNull(iamReader.read(new IAMIndex(100)));
     }
 }

@@ -58,10 +58,8 @@ public class IAMWriter extends IAMStream {
      * @return hash of sent iota transaction
      * @throws InvalidParameterException if index is negative
      * */
-    public String publish(int index, JSONObject message) {
-        if(index < 0)
-            throw new InvalidParameterException("parameter index cannot be negative");
-        if(!isAsciiString(message.toString()))
+    public String publish(IAMIndex index, JSONObject message) {
+        if(!TryteTool.isAsciiString(message.toString()))
             throw new InvalidParameterException("parameter message contains non-ascii characters");
         String signature = generateIAMPacketSignature(index, message);
         JSONObject iamPacket = buildIAMPacket(signature, message);
@@ -74,15 +72,6 @@ public class IAMWriter extends IAMStream {
 
     public String getPrivateKeyTrytes() {
         return signer.getPrivateKeyTrytes();
-    }
-
-    private boolean isAsciiString(String s) {
-        for (char c : s.toCharArray()) {
-            if (((int)c) > 127) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private void initSignerKeys(String id, String privateKeyTrytes) throws InvalidKeySpecException {
@@ -109,7 +98,7 @@ public class IAMWriter extends IAMStream {
         }
     }
 
-    private String generateIAMPacketSignature(int index, JSONObject message) {
+    private String generateIAMPacketSignature(IAMIndex index, JSONObject message) {
         String stringToSign = buildStringToSignForIAMPacket(index, message);
         return signer.sign(stringToSign);
     }

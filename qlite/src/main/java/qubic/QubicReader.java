@@ -47,7 +47,7 @@ public class QubicReader {
     }
 
     private JSONObject fetchQubicTransaction() {
-        JSONObject qubicTransaction = reader.read(0);
+        JSONObject qubicTransaction = reader.read(QubicWriter.QUBIC_TRANSACTION_IAM_INDEX);
         QubicTransactionValidator.throwExceptionIfInvalid(qubicTransaction);
         return qubicTransaction;
     }
@@ -79,7 +79,7 @@ public class QubicReader {
     }
 
     private JSONArray fetchAssemblyJSONArray() {
-        JSONObject assemblyTransaction = reader.read(1);
+        JSONObject assemblyTransaction = reader.read(QubicWriter.ASSEMBLY_TRANSACTION_IAM_INDEX);
         try {
             return assemblyTransaction.getJSONArray("assembly");
         } catch (JSONException e) {

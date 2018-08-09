@@ -89,7 +89,7 @@ public class Assembly {
         String[] addresses = new String[selection.size()];
         for (int i = 0; i < addresses.length; i++) {
             OracleReader or = selection.get(i);
-            addresses[i] = (forHashStatements ? or.getHashIAMStream() : or.getResultIAMStream()).buildAddress(epoch+1);
+            addresses[i] = (forHashStatements ? or.getHashReader() : or.getResultReader()).buildAddress(epoch+1);
         }
 
         List<Transaction> preload = TangleAPI.getInstance().findTransactionsByAddresses(addresses);

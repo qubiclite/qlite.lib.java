@@ -8,7 +8,8 @@ import org.apache.commons.lang3.StringUtils;
  *
  * TryteTool is a collection of a few basic tryte functions which are needed frequently.
  * */
-public class TryteTool {
+public enum  TryteTool {
+    ;
 
     public static final String NINE_ADDRESS = StringUtils.repeat('9', 81);
     public static final int TRYTES_PER_ADDRESS = 81;
@@ -89,6 +90,15 @@ public class TryteTool {
         }
 
         return bytes;
+    }
+
+    public static boolean isAsciiString(String s) {
+        for (char c : s.toCharArray()) {
+            if (((int)c) > 127) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static boolean isTryteSequence(String string) {

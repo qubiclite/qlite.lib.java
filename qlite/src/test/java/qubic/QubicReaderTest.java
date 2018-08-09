@@ -22,7 +22,7 @@ public class QubicReaderTest {
         eqs.setCode(code);
 
         qubicWriter.publishQubicTransaction();
-        String assertMessage = "qubic transaction hash: " + qubicWriter.getQubicTxHash();
+        String assertMessage = "qubic transaction hash: " + qubicWriter.getQubicTransactionHash();
         QubicReader qubicReader = new QubicReader(qubicWriter.getID());
         QubicSpecification read_qs = qubicReader.getSpecification();
 

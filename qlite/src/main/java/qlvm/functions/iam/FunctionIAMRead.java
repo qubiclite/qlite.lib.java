@@ -1,5 +1,6 @@
 package qlvm.functions.iam;
 
+import iam.IAMIndex;
 import org.json.JSONObject;
 import qlvm.QLVM;
 import qlvm.functions.Function;
@@ -15,9 +16,9 @@ public class FunctionIAMRead extends Function {
         String iamID = par[0];
         iamID = iamID.substring(1, iamID.length()-1);
 
-        int index = parseStringToNumber(par[1]).intValue();
+        int position = parseStringToNumber(par[1]).intValue();
 
-        JSONObject o = new IAMReader(iamID).read(index);
+        JSONObject o = new IAMReader(iamID).read(new IAMIndex(position));
         return o == null ? null : o.toString();
     }
 }
