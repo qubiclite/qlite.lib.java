@@ -1,6 +1,8 @@
 package oracle;
 
-import oracle.statements.*;
+import oracle.statements.hash.HashStatementIAMIndex;
+import oracle.statements.result.ResultStatement;
+import oracle.statements.result.ResultStatementIAMIndex;
 import org.junit.Test;
 import qubic.EditableQubicSpecification;
 import qubic.QubicReader;
@@ -27,11 +29,10 @@ public class OracleReaderTest {
         oracleWriter.doResultStatement();
 
         OracleReader oracleReader = new OracleReader(oracleWriter.getID());
-        oracleReader.readStatement(null, new HashStatementIAMIndex(3));
-        ResultStatement resultStatement = (ResultStatement)oracleReader.readStatement(null, new ResultStatementIAMIndex(3));
+        oracleReader.getHashStatementReader().read(3);
+        ResultStatement resultStatement = oracleReader.getResultStatementReader().read(3);
 
         String assetMessage = "qubic ID: " + qubicWriter.getID() + ", oracle ID" + oracleWriter.getID();
-
         assertEquals(assetMessage, "{'epoch': 3}", resultStatement.getContent());
     }
 }

@@ -1,15 +1,12 @@
 package oracle;
 
-import iam.IAMIndex;
-import iam.IAMKeywordReader;
 import iam.exceptions.CorruptIAMStreamException;
-import exceptions.InvalidStatementException;
 import jota.model.Transaction;
 import iam.IAMReader;
 import oracle.statements.*;
-import org.json.JSONObject;
+import oracle.statements.hash.HashStatementReader;
+import oracle.statements.result.ResultStatementReader;
 
-import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -23,12 +20,8 @@ import java.util.List;
 public class OracleReader {
 
     private final IAMReader reader;
-
     private final HashStatementReader hashStatementReader;
     private final ResultStatementReader resultStatementReader;
-
-    // a list of all already fetched valid statements (for efficiency purposes)
-    private final HashMap<Integer, ResultStatement> resultStatements = new HashMap<>();
 
     /**
      * Initializes TangleReaders for HashStatements and ResultStatements.
@@ -40,35 +33,27 @@ public class OracleReader {
         resultStatementReader = new ResultStatementReader(reader, hashStatementReader);
     }
 
-    public ResultStatement readResultStatement(int epoch) {
-        return readResultStatement(null, epoch);
+    public Statement read(StatementIAMIndex index) {
+        return read(null, index);
     }
 
-    public ResultStatement readResultStatement(List<Transaction> preload, int epoch) {
-        return resultStatementReader.read(preload, epoch);
-    }
-
-    public HashStatement readHashStatement(int epoch) {
-        return readHashStatement(null, epoch);
-    }
-
-    public HashStatement readHashStatement(List<Transaction> preload, int epoch) {
-        return hashStatementReader.read(preload, epoch);
-    }
-
-    public Statement readStatement(StatementIAMIndex index) {
-        return readStatement(null, index);
-    }
-
-    public Statement readStatement(List<Transaction> preload, StatementIAMIndex index) {
+    public Statement read(List<Transaction> preload, StatementIAMIndex index) {
         switch (index.getStatementType()) {
             case HASH_STATEMENT:
-                return readHashStatement(preload, index.getEpoch());
+                return hashStatementReader.read(preload, index.getEpoch());
             case RESULT_STATEMENT:
-                return readResultStatement(preload, index.getEpoch());
+                return resultStatementReader.read(preload, index.getEpoch());
             default:
                 throw new IllegalStateException("unknown statement type: " + index.getStatementType().name());
         }
+    }
+
+    public HashStatementReader getHashStatementReader() {
+        return hashStatementReader;
+    }
+
+    public ResultStatementReader getResultStatementReader() {
+        return resultStatementReader;
     }
 
     public String getID() {

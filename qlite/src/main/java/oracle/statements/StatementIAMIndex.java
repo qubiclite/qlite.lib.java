@@ -6,7 +6,7 @@ public class StatementIAMIndex extends IAMIndex {
 
     private final StatementType statementType;
 
-    StatementIAMIndex(StatementType statementType, long position) {
+    public StatementIAMIndex(StatementType statementType, long position) {
         super(statementType.getIAMKeyword(), position);
         this.statementType = statementType;
     }

@@ -1,4 +1,7 @@
-package oracle.statements;
+package oracle.statements.hash;
+
+import oracle.statements.StatementIAMIndex;
+import oracle.statements.StatementType;
 
 public class HashStatementIAMIndex extends StatementIAMIndex {
 

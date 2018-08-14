@@ -1,6 +1,8 @@
 package oracle.statements;
 
 import constants.TangleJSONConstants;
+import oracle.statements.hash.HashStatement;
+import oracle.statements.result.ResultStatement;
 import org.json.JSONObject;
 
 /**
@@ -44,7 +46,7 @@ public abstract class Statement {
     /**
      * @return content type name, categorizes what kind of content the statement contains
      * */
-    abstract String getContentType();
+    public abstract String getContentType();
 
     public int getEpochIndex() {
         return epochIndex;

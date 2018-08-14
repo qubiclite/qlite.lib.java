@@ -4,6 +4,12 @@ import constants.TangleJSONConstants;
 import iam.IAMKeywordWriter;
 import iam.IAMWriter;
 import oracle.statements.*;
+import oracle.statements.hash.HashStatement;
+import oracle.statements.hash.HashStatementIAMIndex;
+import oracle.statements.hash.HastStatementWriter;
+import oracle.statements.result.ResultStatement;
+import oracle.statements.result.ResultStatementIAMIndex;
+import oracle.statements.result.ResultStatementWriter;
 import qlvm.QLVM;
 import org.json.JSONObject;
 import qubic.QubicReader;
@@ -19,7 +25,8 @@ public class OracleWriter {
     private final QubicReader qubicReader;
     private final Assembly assembly;
     private final IAMWriter writer;
-    private final IAMKeywordWriter resultWriter, hashWriter;
+    private final HastStatementWriter hashStatementWriter;
+    private final ResultStatementWriter resultStatementWriter;
 
     private int firstEpochIndex = -1; // epoch at which the oracle started monitoring the qubic epochs. necessary to decide when to use InterQubicResultFetcher for own assembly
     private String name = "ql-node";
@@ -33,8 +40,8 @@ public class OracleWriter {
         this.qubicReader = qubicReader;
         assembly = new Assembly(qubicReader);
         writer = new IAMWriter();
-        resultWriter = new IAMKeywordWriter(writer, StatementType.RESULT_STATEMENT.getIAMKeyword());
-        hashWriter = new IAMKeywordWriter(writer, StatementType.HASH_STATEMENT.getIAMKeyword());
+        hashStatementWriter = new HastStatementWriter(writer);
+        resultStatementWriter = new ResultStatementWriter(writer);
     }
 
     /**
@@ -46,8 +53,8 @@ public class OracleWriter {
         this.qubicReader = qubicReader;
         assembly = new Assembly(qubicReader);
         this.writer = writer;
-        resultWriter = new IAMKeywordWriter(writer, StatementType.Constants.RESULT_STATEMENT_IAM_KEYWORD);
-        hashWriter = new IAMKeywordWriter(writer, StatementType.Constants.HASH_STATEMENT_IAM_KEYWORD);
+        hashStatementWriter = new HastStatementWriter(writer);
+        resultStatementWriter = new ResultStatementWriter(writer);
     }
 
     /**
@@ -60,17 +67,13 @@ public class OracleWriter {
             firstEpochIndex = epochIndex;
 
         if(epochIndex > 0)
-            fetchResultStatement(epochIndex);
+            fetchStatements(new HashStatementIAMIndex(epochIndex));
 
         this.currentlyProcessedResult = new ResultStatement(epochIndex, calcResult(epochIndex));
 
         String hash = ResultHasher.hash(this.currentlyProcessedResult);
         int[] ratings = assembly.getRatings();
-        publishHashStatement(new HashStatement(epochIndex, hash, ratings));
-    }
-
-    private void publishHashStatement(HashStatement hashStatement) {
-        hashWriter.publish(hashStatement.getEpochIndex(), hashStatement.toJSON());
+        hashStatementWriter.write(new HashStatement(epochIndex, hash, ratings));
     }
 
     private void fetchStatements(StatementIAMIndex index) {
@@ -90,12 +93,8 @@ public class OracleWriter {
      * for the current epoch. Result has already been calculated by doHashStatement().
      * */
     public void doResultStatement() {
-        fetchResultStatement(currentlyProcessedResult.getEpochIndex());
-        resultWriter.publish(currentlyProcessedResult.getEpochIndex(), currentlyProcessedResult.toJSON());
-    }
-
-    private void fetchResultStatement(int index) {
-        fetchStatements(new ResultStatementIAMIndex(index));
+        fetchStatements(new ResultStatementIAMIndex(currentlyProcessedResult.getEpochIndex()));
+        resultStatementWriter.write(currentlyProcessedResult);
     }
 
     /**

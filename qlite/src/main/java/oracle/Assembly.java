@@ -1,10 +1,8 @@
 package oracle;
 
 import jota.model.Transaction;
-import oracle.statements.ResultStatement;
-import oracle.statements.ResultStatementIAMIndex;
+import oracle.statements.result.ResultStatement;
 import oracle.statements.StatementIAMIndex;
-import oracle.statements.StatementType;
 import qubic.QubicReader;
 import tangle.TangleAPI;
 
@@ -51,7 +49,7 @@ public class Assembly {
         List<Transaction> preload = TangleAPI.getInstance().findTransactionsByAddresses(addresses);
 
         for (OracleReader o : selection)
-            o.readStatement(preload, index);
+            o.read(preload, index);
     }
 
     private static String[] buildStatementAddresses(List<OracleReader> selection, StatementIAMIndex index) {
@@ -92,7 +90,7 @@ public class Assembly {
 
             // neutral rating for qnode.statements that were ignored in the last epoch
             // due to not being existent or following an invalid hash statement
-            ResultStatement resultEpoch = oracleReader.readResultStatement(epochIndex);
+            ResultStatement resultEpoch = oracleReader.getResultStatementReader().read(epochIndex);
             if(resultEpoch == null || !resultEpoch.isHashStatementValid()) {
                 ratings[i] = 0;
                 continue;

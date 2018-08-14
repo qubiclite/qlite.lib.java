@@ -4,29 +4,32 @@ import exceptions.InvalidStatementException;
 import iam.IAMKeywordReader;
 import iam.IAMReader;
 import jota.model.Transaction;
+import oracle.statements.hash.HashStatement;
+import oracle.statements.result.ResultStatement;
 import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.List;
 
-class StatementReader {
+public class StatementReader {
 
     private final StatementType statementType;
     private final IAMKeywordReader reader;
     private final HashMap<Integer, Statement> knownStatementsByEpoch = new HashMap<>();
 
-    StatementReader(IAMReader generalReader, StatementType statementType) {
+    public StatementReader(IAMReader generalReader, StatementType statementType) {
         reader = new IAMKeywordReader(generalReader, statementType.getIAMKeyword());
         this.statementType = statementType;
     }
 
-    Statement read(List<Transaction> preload, int epoch) {
+    public Statement read(List<Transaction> preload, int epoch) {
 
         if(knownStatementsByEpoch.containsKey(epoch))
             return knownStatementsByEpoch.get(epoch);
 
         // read JSONObject from tangle stream
         JSONObject jsonObject = preload != null ? reader.readFromSelection(epoch, preload) : reader.read(epoch);
+
         if(jsonObject == null)
             return null;
 

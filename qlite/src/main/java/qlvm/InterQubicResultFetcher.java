@@ -4,10 +4,8 @@ import constants.GeneralConstants;
 import oracle.Assembly;
 import oracle.OracleReader;
 import oracle.QuorumBasedResult;
-import oracle.statements.HashStatementIAMIndex;
-import oracle.statements.ResultStatementIAMIndex;
-import oracle.statements.StatementIAMIndex;
-import oracle.statements.StatementType;
+import oracle.statements.hash.HashStatementIAMIndex;
+import oracle.statements.result.ResultStatementIAMIndex;
 import qubic.QubicReader;
 
 import java.util.HashMap;

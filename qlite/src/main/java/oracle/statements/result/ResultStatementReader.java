@@ -1,7 +1,10 @@
-package oracle.statements;
+package oracle.statements.result;
 
 import iam.IAMReader;
 import jota.model.Transaction;
+import oracle.statements.StatementReader;
+import oracle.statements.StatementType;
+import oracle.statements.hash.HashStatementReader;
 
 import java.util.List;
 
@@ -12,6 +15,9 @@ public class ResultStatementReader extends StatementReader {
     public ResultStatementReader(IAMReader generalReader, HashStatementReader hashStatementReader) {
         super(generalReader, StatementType.RESULT_STATEMENT);
         this.hashStatementReader = hashStatementReader;
+
+        if(hashStatementReader == null)
+            throw new NullPointerException("parameter 'hashStatementReader' is null");
     }
 
     public ResultStatement read(int epoch) {
@@ -21,7 +27,8 @@ public class ResultStatementReader extends StatementReader {
     @Override
     public ResultStatement read(List<Transaction> preload, int epoch) {
         ResultStatement resultStatement = (ResultStatement)super.read(preload, epoch);
-        resultStatement.setHashStatement(hashStatementReader.read(epoch));
+        if(resultStatement != null)
+            resultStatement.setHashStatement(hashStatementReader.read(epoch));
         return resultStatement;
     }
 }

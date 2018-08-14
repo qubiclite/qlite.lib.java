@@ -1,7 +1,9 @@
-package oracle.statements;
+package oracle.statements.result;
 
 import constants.TangleJSONConstants;
 import exceptions.InvalidStatementException;
+import oracle.statements.Statement;
+import oracle.statements.hash.HashStatement;
 import org.json.JSONException;
 import org.json.JSONObject;
 import oracle.ResultHasher;
@@ -69,7 +71,7 @@ public class ResultStatement extends Statement {
     }
 
     @Override
-    String getContentType() {
+    public String getContentType() {
         return CONTENT_TYPE;
     }
 

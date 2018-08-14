@@ -1,7 +1,9 @@
-package oracle.statements;
+package oracle.statements.hash;
 
 import iam.IAMReader;
 import jota.model.Transaction;
+import oracle.statements.StatementReader;
+import oracle.statements.StatementType;
 
 import java.util.List;
 

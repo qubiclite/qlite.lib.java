@@ -1,7 +1,7 @@
 package oracle;
 
 import constants.GeneralConstants;
-import oracle.statements.*;
+import oracle.statements.result.ResultStatement;
 
 import java.util.HashMap;
 import java.util.List;
@@ -69,8 +69,8 @@ public class ConsensusBuilder {
     }
 
     private static void addOraclesVoteToVoting(OracleReader oracleReader, int epochIndex, Map<String, Double> voting) {
-        oracleReader.readHashStatement(epochIndex);
-        ResultStatement resultStatement = oracleReader.readResultStatement(epochIndex);
+        oracleReader.getHashStatementReader().read(epochIndex);
+        ResultStatement resultStatement = oracleReader.getResultStatementReader().read(epochIndex);
         if(resultStatement != null && resultStatement.isHashStatementValid())
             addResultStatementToQuorumVoting(voting, resultStatement);
     }
