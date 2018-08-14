@@ -80,6 +80,7 @@ public class QubicReader {
 
     private JSONArray fetchAssemblyJSONArray() {
         JSONObject assemblyTransaction = reader.read(QubicWriter.ASSEMBLY_TRANSACTION_IAM_INDEX);
+        if(assemblyTransaction == null) return null;
         try {
             return assemblyTransaction.getJSONArray("assembly");
         } catch (JSONException e) {
@@ -89,10 +90,9 @@ public class QubicReader {
 
     /**
      * Searches the tangle for recently promoted qubics.
-     *
      * @return ArrayList of all found qubics
      */
-    public static ArrayList<QubicReader> findQubics() {
+    public static List<QubicReader> findPromotedQubics() {
         ArrayList<QubicReader> qubics = new ArrayList<>();
         String[] recentPromotions = TangleAPI.getInstance().readTransactionsByAddress(null, TryteTool.buildCurrentQubicPromotionAddress(), false).values().toArray(new String[0]);
         for (String recentPromotion : recentPromotions) {
@@ -102,7 +102,6 @@ public class QubicReader {
     }
 
     public int lastCompletedEpoch() {
-
         long timeRunning = System.currentTimeMillis() / 1000 - specification.getExecutionStartUnix();
         int epochDuration = specification.getEpochDuration();
         return Math.max((int) Math.floor(timeRunning / epochDuration) - 1, -1);

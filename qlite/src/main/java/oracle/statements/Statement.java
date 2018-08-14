@@ -44,7 +44,7 @@ public abstract class Statement {
     /**
      * @return content type name, categorizes what kind of content the statement contains
      * */
-    protected abstract String getContentType();
+    abstract String getContentType();
 
     public int getEpochIndex() {
         return epochIndex;

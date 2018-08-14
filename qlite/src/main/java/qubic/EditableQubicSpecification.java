@@ -8,7 +8,7 @@ public class EditableQubicSpecification extends QubicSpecification {
         executionStartUnix = 0; // setter would cause exception
         setHashPeriodDuration(20);
         setResultPeriodDuration(10);
-        setRunTimeLimit(10);
+        setRuntimeLimit(10);
     }
 
     public EditableQubicSpecification(QubicSpecification origin) {
@@ -44,7 +44,7 @@ public class EditableQubicSpecification extends QubicSpecification {
         this.resultPeriodDuration = resultPeriodDuration;
     }
 
-    public void setRunTimeLimit(int runTimeLimit) {
+    public void setRuntimeLimit(int runTimeLimit) {
         this.runtimeLimit = runTimeLimit;
     }
 

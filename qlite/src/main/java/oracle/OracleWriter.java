@@ -2,74 +2,52 @@ package oracle;
 
 import constants.TangleJSONConstants;
 import iam.IAMKeywordWriter;
-import iam.exceptions.CorruptIAMStreamException;
 import iam.IAMWriter;
+import oracle.statements.*;
 import qlvm.QLVM;
 import org.json.JSONObject;
 import qubic.QubicReader;
-import oracle.statements.HashStatement;
-import oracle.statements.ResultStatement;
 import tangle.TangleAPI;
-import tangle.TryteTool;
 
-import java.security.spec.InvalidKeySpecException;
 import java.util.LinkedList;
 import java.util.List;
 
-/**
- * @author microhash
- *
- * The OracleWriter is the oracle machine client that processes a qubic and receives
- * rewards for its service. OracleWriter is the writing counterpart to OracleReader:
- * @see OracleReader
- * */
 public class OracleWriter {
 
-    static final String ORACLE_RESULT_STREAM_KEYWORD = "RESULTS", ORACLE_HASH_STREAM_KEYWORD = "HASHES";
-
+    private OracleManager manager;
+    private ResultStatement currentlyProcessedResult;
+    private final QubicReader qubicReader;
+    private final Assembly assembly;
     private final IAMWriter writer;
     private final IAMKeywordWriter resultWriter, hashWriter;
 
-    private final Assembly assembly;
-    private final QubicReader qubicReader;
-
-    private OracleManager manager;
-
-    // epoch at which the qnode became active. necessary to decide when to use InterQubicResultFetcher for own assembly
-    private int firstEpochIndex = -1;
-
-    private int epochIndex;
-    private String epochResult;
-    private String epochNonce;
+    private int firstEpochIndex = -1; // epoch at which the oracle started monitoring the qubic epochs. necessary to decide when to use InterQubicResultFetcher for own assembly
     private String name = "ql-node";
-
     private final LinkedList<OracleListener> oracleListeners = new LinkedList<>();
 
     /**
      * Creates a new IAMStream identity for this oracle.
      * @param qubicReader qubic to be processed
      * */
-    public OracleWriter(QubicReader qubicReader) throws CorruptIAMStreamException {
-
+    public OracleWriter(QubicReader qubicReader) {
         this.qubicReader = qubicReader;
         assembly = new Assembly(qubicReader);
         writer = new IAMWriter();
-        resultWriter = new IAMKeywordWriter(writer, ORACLE_RESULT_STREAM_KEYWORD);
-        hashWriter = new IAMKeywordWriter(writer, ORACLE_HASH_STREAM_KEYWORD);
+        resultWriter = new IAMKeywordWriter(writer, StatementType.RESULT_STATEMENT.getIAMKeyword());
+        hashWriter = new IAMKeywordWriter(writer, StatementType.HASH_STATEMENT.getIAMKeyword());
     }
 
     /**
      * Recreates an already existing Qubic by its IAMStream identity.
      * @param qubicReader       qubic to be processed
-     * @param writer            IAM stream of the oracle
+     * @param writer            IAM writer of the oracle
      * */
-    public OracleWriter(QubicReader qubicReader, IAMWriter writer) throws InvalidKeySpecException {
-
+    public OracleWriter(QubicReader qubicReader, IAMWriter writer) {
         this.qubicReader = qubicReader;
-        this.writer = writer;
-        resultWriter = new IAMKeywordWriter(writer, ORACLE_RESULT_STREAM_KEYWORD);
-        hashWriter = new IAMKeywordWriter(writer, ORACLE_HASH_STREAM_KEYWORD);
         assembly = new Assembly(qubicReader);
+        this.writer = writer;
+        resultWriter = new IAMKeywordWriter(writer, StatementType.Constants.RESULT_STATEMENT_IAM_KEYWORD);
+        hashWriter = new IAMKeywordWriter(writer, StatementType.Constants.HASH_STATEMENT_IAM_KEYWORD);
     }
 
     /**
@@ -78,42 +56,46 @@ public class OracleWriter {
      * @param epochIndex index of the current epoch
      * */
     public void doHashStatement(int epochIndex) {
+        if(firstEpochIndex < 0)
+            firstEpochIndex = epochIndex;
 
-        if(firstEpochIndex < 0) firstEpochIndex = epochIndex;
+        if(epochIndex > 0)
+            fetchResultStatement(epochIndex);
 
-        if(epochIndex > 0) {
-            // update assembly
-            assembly.fetchEpoch(false, epochIndex-1);
+        this.currentlyProcessedResult = new ResultStatement(epochIndex, calcResult(epochIndex));
 
-            // feed oracleListeners
-            QuorumBasedResult qbr = assembly.determineQuorumBasedResult(epochIndex-1);
-            for(OracleListener qf : oracleListeners)
-                qf.onReceiveEpochResult(epochIndex-1, qbr);
-        }
-
-        this.epochIndex = epochIndex;
-        this.epochNonce = genNonce();
-        this.epochResult = calcResult();
-
-        String hash = ResultHasher.hash(epochNonce, epochResult);
+        String hash = ResultHasher.hash(this.currentlyProcessedResult);
         int[] ratings = assembly.getRatings();
-        HashStatement hashEpoch = new HashStatement(epochIndex, hash, ratings);
-
-        hashWriter.publish(epochIndex+1, hashEpoch.toJSON()); // +1 because epoch #0 has address …999A not …9999
+        publishHashStatement(new HashStatement(epochIndex, hash, ratings));
     }
 
+    private void publishHashStatement(HashStatement hashStatement) {
+        hashWriter.publish(hashStatement.getEpochIndex(), hashStatement.toJSON());
+    }
+
+    private void fetchStatements(StatementIAMIndex index) {
+        assembly.fetchStatements(index);
+        if(index.getStatementType() == StatementType.HASH_STATEMENT)
+            updateListenersWithPreviousEpoch(index.getEpoch());
+    }
+
+    private void updateListenersWithPreviousEpoch(int previousEpochIndex) {
+        QuorumBasedResult qbr = assembly.getConsensusBuilder().buildConsensus(previousEpochIndex-1);
+        for(OracleListener qf : oracleListeners)
+            qf.onReceiveEpochResult(previousEpochIndex, qbr);
+    }
 
     /**
      * Lets assembly fetch HashStatements from current epoch, then creates and publishes the ResultStatement
      * for the current epoch. Result has already been calculated by doHashStatement().
      * */
     public void doResultStatement() {
-        // update assembly
-        assembly.fetchEpoch(true, epochIndex);
+        fetchResultStatement(currentlyProcessedResult.getEpochIndex());
+        resultWriter.publish(currentlyProcessedResult.getEpochIndex(), currentlyProcessedResult.toJSON());
+    }
 
-        //if(epochIndex > 0) assembly.determineQuorumBasedResult(epochIndex-1);
-        ResultStatement resultEpoch = new ResultStatement(epochIndex, ""+epochResult, epochNonce);
-        resultWriter.publish(epochIndex+1, resultEpoch.toJSON()); // +1 because epoch #0 has address …999A not …9999
+    private void fetchResultStatement(int index) {
+        fetchStatements(new ResultStatementIAMIndex(index));
     }
 
     /**
@@ -121,10 +103,16 @@ public class OracleWriter {
      * received applications on this address and consider adding the oracle to the assembly.
      * */
     public void apply() {
+        throwExceptionIfTooLateToApply();
+        sendApplication();
+    }
 
-        if(qubicReader.getSpecification().getExecutionStartUnix() < System.currentTimeMillis()/1000)
+    private void throwExceptionIfTooLateToApply() {
+        if(qubicReader.getSpecification().timeUntilExecutionStart() <= 0)
             throw new IllegalStateException("applying aborted: qubic has already entered execution phase");
+    }
 
+    private void sendApplication() {
         JSONObject application = generateApplication();
         String applicationAddress = qubicReader.getID();
         TangleAPI.getInstance().sendMessage(applicationAddress, application.toString());
@@ -141,8 +129,8 @@ public class OracleWriter {
      * Calculates the result string for the current epoch.
      * @return result string for current epoch
      * */
-    private String calcResult() {
-        return QLVM.run(qubicReader.getSpecification().getCode(), OracleWriter.this);
+    private String calcResult(int epochIndex) {
+        return QLVM.run(qubicReader.getSpecification().getCode(), OracleWriter.this, epochIndex);
     }
 
     /**
@@ -151,23 +139,11 @@ public class OracleWriter {
      * @return TRUE = successfully made it into assembly, FALSE = did not make it into assembly
      * */
     public boolean assemble() {
-
-        List<String> oracleIDs = qubicReader.getAssemblyList();
-
-        if(oracleIDs == null || !oracleIDs.contains(getID()))
-            return false;
-
-        if(assembly.size() == 0)
-            assembly.addOracles(oracleIDs);
-
-        return true;
-    }
-
-    /**
-     * @return a random String used as nonce
-     * */
-    private String genNonce() {
-        return TryteTool.generateRandom(30);
+        List<String> acceptedOracles = qubicReader.getAssemblyList();
+        boolean accepted = acceptedOracles != null && acceptedOracles.contains(getID());
+        if(accepted && assembly.size() > 0)
+            assembly.addOracles(acceptedOracles);
+        return accepted;
     }
 
     /**
@@ -198,10 +174,6 @@ public class OracleWriter {
 
     public QubicReader getQubicReader() {
         return qubicReader;
-    }
-
-    public int getEpochIndex() {
-        return epochIndex;
     }
 
     public void setManager(OracleManager manager) {

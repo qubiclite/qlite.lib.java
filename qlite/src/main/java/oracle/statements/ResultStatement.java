@@ -2,10 +2,10 @@ package oracle.statements;
 
 import constants.TangleJSONConstants;
 import exceptions.InvalidStatementException;
-import oracle.OracleWriter;
 import org.json.JSONException;
 import org.json.JSONObject;
 import oracle.ResultHasher;
+import tangle.TryteTool;
 
 /**
  * @author microhash
@@ -19,42 +19,48 @@ public class ResultStatement extends Statement {
 
     private static final String CONTENT_TYPE = "result";
 
-    private final String nonce;
+    private String nonce;
     private final String result;
     private HashStatement hashEpoch;
 
     /**
      * Creates a new ResultStatement from a JSONObject
-     * @param obj the JSONObject describing the ResultStatement
+     * @param jsonObject the JSONObject describing the ResultStatement
      * @return new ResultStatement created from the JSONObject
      * */
-    public static ResultStatement fromJSON(JSONObject obj) throws InvalidStatementException {
+    public static ResultStatement fromJSON(JSONObject jsonObject) throws InvalidStatementException {
 
-        if(obj == null) return null;
-
-        int epochIndex;
-        String result, nonce;
+        if(jsonObject == null)
+            throw new NullPointerException("parameter 'jsonObject' is null");
 
         try {
-            epochIndex = obj.getInt(TangleJSONConstants.STATEMENT_EPOCH_INDEX);
-            result = obj.getString(TangleJSONConstants.RESULT_STATEMENT_RESULT);
-            nonce = obj.getString(TangleJSONConstants.RESULT_STATEMENT_NONCE);
+            return tryToParseFromJSON(jsonObject);
         } catch (JSONException e) {
             throw new InvalidStatementException(e.getClass().getName() + ": " + e.getMessage(), e);
         }
+    }
 
-        return new ResultStatement(epochIndex, result, nonce);
+    private static ResultStatement tryToParseFromJSON(JSONObject jsonObject) {
+        int epochIndex = jsonObject.getInt(TangleJSONConstants.STATEMENT_EPOCH_INDEX);
+        String result = jsonObject.getString(TangleJSONConstants.RESULT_STATEMENT_RESULT);
+        String nonce = jsonObject.getString(TangleJSONConstants.RESULT_STATEMENT_NONCE);
+        ResultStatement parsed = new ResultStatement(epochIndex, result);
+        parsed.nonce = nonce;
+        return parsed;
     }
 
     /**
      * @param epochIndex index of epoch in which this statement occured
      * @param result     result the oracle calculated for this particular epoch
-     * @param nonce      random value used as salt during the hash creation of the HashStatement.
      * */
-    public ResultStatement(int epochIndex, String result, String nonce) {
+    public ResultStatement(int epochIndex, String result) {
         super(epochIndex);
         this.result = result;
-        this.nonce = nonce;
+        this.nonce = genNonce();
+    }
+
+    private static String genNonce() {
+        return TryteTool.generateRandom(30);
     }
 
     @Override
@@ -63,11 +69,11 @@ public class ResultStatement extends Statement {
     }
 
     @Override
-    protected String getContentType() {
+    String getContentType() {
         return CONTENT_TYPE;
     }
 
-    public void setHashEpoch(HashStatement hashEpoch) {
+    public void setHashStatement(HashStatement hashEpoch) {
         this.hashEpoch = hashEpoch;
     }
 
@@ -76,7 +82,7 @@ public class ResultStatement extends Statement {
      * published in time) and contains the correct hash.
      * */
     public boolean isHashStatementValid() {
-        return hashEpoch != null && hashEpoch.getContent().equals(ResultHasher.hash(nonce, result));
+        return hashEpoch != null && hashEpoch.getContent().equals(ResultHasher.hash(this));
     }
 
     @Override
@@ -84,5 +90,9 @@ public class ResultStatement extends Statement {
         JSONObject o = super.toJSON();
         o.put(TangleJSONConstants.RESULT_STATEMENT_NONCE, nonce);
         return o;
+    }
+
+    public String getNonce() {
+        return nonce;
     }
 }

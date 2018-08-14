@@ -83,7 +83,7 @@ public class QubicSpecification {
         return qubicTx;
     }
 
-    public void throwExceptionIfInvalid() {
+    public void throwExceptionIfTooLateToPublish() {
         if(getExecutionStartUnix() < System.currentTimeMillis()/1000)
             throw new IllegalArgumentException("parameter 'executionStart' is smaller than current timestamp, indicating the execution would have already started");
     }

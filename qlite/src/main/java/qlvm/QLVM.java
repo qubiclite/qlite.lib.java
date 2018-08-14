@@ -61,10 +61,10 @@ public class QLVM {
      * @param code the code to run
      * @param oracleWriter the oracleWriter to use as context
      * */
-    public static String run(String code, OracleWriter oracleWriter) {
+    public static String run(String code, OracleWriter oracleWriter, int epochIndex) {
 
         final ObjectContainer oc = new ObjectContainer(null);
-        final QLVM qlvm = new QLVM(oracleWriter);
+        final QLVM qlvm = new QLVM(oracleWriter, epochIndex);
 
         Thread t = new Thread() {
             @Override
@@ -111,9 +111,9 @@ public class QLVM {
         return qlvm.executeProgram(mainBlock);
     }
 
-    private QLVM(OracleWriter oracleWriter) {
+    private QLVM(OracleWriter oracleWriter, int epochIndex) {
         this.oracleWriter = oracleWriter;
-        variables.put("epoch", oracleWriter.getEpochIndex()+"");
+        variables.put("epoch", ""+epochIndex);
         variables.put("qubic", "'"+oracleWriter.getQubicReader().getID()+"'");
         inTestMode = false;
     }

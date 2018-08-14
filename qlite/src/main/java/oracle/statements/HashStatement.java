@@ -70,7 +70,7 @@ public class HashStatement extends Statement {
     }
 
     @Override
-    protected String getContentType() {
+    String getContentType() {
         return CONTENT_TYPE;
     }
 

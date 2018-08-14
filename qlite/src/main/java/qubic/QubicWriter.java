@@ -8,8 +8,6 @@ import org.json.JSONObject;
 import tangle.TangleAPI;
 import tangle.TryteTool;
 
-import java.security.spec.InvalidKeySpecException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -27,36 +25,27 @@ public class QubicWriter {
     static final IAMIndex QUBIC_TRANSACTION_IAM_INDEX = new IAMIndex(0);
     static final IAMIndex ASSEMBLY_TRANSACTION_IAM_INDEX = new IAMIndex(1);
 
-    private IAMWriter writer;
-    private final ArrayList<String> assembly = new ArrayList<>();
+    private final IAMWriter writer;
+    private final List<String> assembly = new LinkedList<>();
     private String qubicTransactionHash, assemblyTransactionHash;
-    private final EditableQubicSpecification specification;
+    private final EditableQubicSpecification editable;
 
     private QubicWriterState state = QubicWriterState.PRE_ASSEMBLY_PHASE;
 
     public QubicWriter() {
         writer = new IAMWriter();
-        specification = new EditableQubicSpecification();
+        editable = new EditableQubicSpecification();
     }
 
     /**
      * Recreates an already existing Qubic by its IAMStream identity.
-     * @param id               IAMStream identity of the qubic
-     * @param privateKeyTrytes tryte encoded private key
+     * @param writer IAMStream of the qubic
      * */
-    public QubicWriter(String id, String privateKeyTrytes) throws InvalidKeySpecException {
-        writer = new IAMWriter(id, privateKeyTrytes);
-        QubicReader qr = new QubicReader(id);
-        specification = new EditableQubicSpecification(qr.getSpecification());
+    public QubicWriter(IAMWriter writer) {
+        this.writer = new IAMWriter();
+        QubicReader qr = new QubicReader(writer.getID());
+        editable = new EditableQubicSpecification(qr.getSpecification());
         state = determineQubicWriterStateFromQubicReader(qr);
-    }
-
-    /**
-     * Adds an oracle to the future assembly as preparation for the assembly transaction.
-     * @param oracleID IAMStream identity of the oracle
-     * */
-    public void addToAssembly(String oracleID) {
-        assembly.add(oracleID);
     }
 
     /**
@@ -67,8 +56,8 @@ public class QubicWriter {
         if(state != QubicWriterState.PRE_ASSEMBLY_PHASE)
             throw new IllegalStateException("qubic transaction can only be published if qubic is in state PRE_ASSEMBLY_PHASE, but qubic is in state " + state.name());
 
-        specification.throwExceptionIfInvalid();
-        JSONObject qubicTransactionJSON = specification.generateQubicTransactionJSON();
+        editable.throwExceptionIfTooLateToPublish();
+        JSONObject qubicTransactionJSON = editable.generateQubicTransactionJSON();
         qubicTransactionHash = writer.publish(QUBIC_TRANSACTION_IAM_INDEX, qubicTransactionJSON);
         state = QubicWriterState.ASSEMBLY_PHASE;
     }
@@ -118,7 +107,7 @@ public class QubicWriter {
     private void throwExceptionIfCannotPublishAssemblyTransaction() {
         if(state != QubicWriterState.ASSEMBLY_PHASE)
             throw new IllegalStateException("assembly transaction can only be published if qubic is in state ASSEMBLY_PHASE, but qubic is in state " + state.name());
-        if(specification.timeUntilExecutionStart() <= 0)
+        if(editable.timeUntilExecutionStart() <= 0)
             throw new IllegalStateException("the execution phase would have already started, it is too late to publish the assembly transaction now");
     }
 
@@ -144,29 +133,31 @@ public class QubicWriter {
         return assemblyTransactionHash;
     }
 
-    public String getPrivateKeyTrytes() { return writer.getPrivateKeyTrytes(); }
+    public IAMWriter getWriter() {
+        return writer;
+    }
 
-    public ArrayList<String> getAssembly() {
+    public List<String> getAssembly() {
         return assembly;
     }
 
+    public EditableQubicSpecification getEditable() {
+        if(state != QubicWriterState.PRE_ASSEMBLY_PHASE)
+            throw new IllegalStateException("the specification cannot be edited anymore because the qubic transaction has already been published");
+        return editable;
+    }
+
+    public QubicSpecification getSpecification() {
+        return state == QubicWriterState.PRE_ASSEMBLY_PHASE ? editable : new QubicSpecification(editable);
+    }
+
     public String getState() {
-        if(state != QubicWriterState.EXECUTION_PHASE && specification.timeUntilExecutionStart() < 0)
+        if(state != QubicWriterState.EXECUTION_PHASE && editable.timeUntilExecutionStart() < 0)
             state = QubicWriterState.ABORTED;
         return state.name().toLowerCase().replace('_', ' ');
     }
 
     enum QubicWriterState {
         PRE_ASSEMBLY_PHASE, ASSEMBLY_PHASE, EXECUTION_PHASE, ABORTED;
-    }
-
-    public EditableQubicSpecification getEditableSpecification() {
-        if(state != QubicWriterState.PRE_ASSEMBLY_PHASE)
-            throw new IllegalStateException("the specification cannot be edited anymore because the qubic transaction has already been published");
-        return specification;
-    }
-
-    public QubicSpecification getSpecification() {
-        return state == QubicWriterState.PRE_ASSEMBLY_PHASE ? specification : new QubicSpecification(specification);
     }
 }

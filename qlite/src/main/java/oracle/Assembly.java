@@ -1,8 +1,10 @@
 package oracle;
 
-import constants.GeneralConstants;
 import jota.model.Transaction;
 import oracle.statements.ResultStatement;
+import oracle.statements.ResultStatementIAMIndex;
+import oracle.statements.StatementIAMIndex;
+import oracle.statements.StatementType;
 import qubic.QubicReader;
 import tangle.TangleAPI;
 
@@ -16,153 +18,56 @@ import java.util.*;
  * */
 public class Assembly {
 
-    private final double QUORUM_MIN = 2D/3D;
-
+    private final QubicReader qubicReader;
     private final List<OracleReader> oracleReaders = new LinkedList<>();
-    private final Map<Integer, QuorumBasedResult> alreadyDeterminedQuorumBasedResults = new HashMap<>();
+    private final ConsensusBuilder consensusBuilder = new ConsensusBuilder(this);
     private int[] ratings;
 
-    private final QubicReader qr;
-
-    public Assembly(QubicReader qr) {
-        this.qr = qr;
+    public Assembly(QubicReader qubicReader) {
+        this.qubicReader = qubicReader;
     }
 
     /**
      * Adds oracleReaders to the assembly.
-     * @param assemblyRoots the oracle ids of each respective oracle to add
+     * @param oracleIDs the oracle ids of each respective oracle to add
+     * @throws NullPointerException if oracleIDs is null
      * */
-    public void addOracles(List<String> assemblyRoots) {
-        if(assemblyRoots != null)
-            for(String assemblyRoot : assemblyRoots)
-                oracleReaders.add(new OracleReader(assemblyRoot));
-    }
-
-    /**
-     * Determines the quorum based result for a specific epoch.
-     * @param epochIndex index of the epoch for which the result shall be determined
-     * @return quorum based result
-     * */
-    public QuorumBasedResult determineQuorumBasedResult(int epochIndex) {
-        return determineQuorumBasedResult(selectRandomOracleReaders(GeneralConstants.QUORUM_MAX_ORACLE_SELECTION_SIZE), epochIndex);
-    }
-
-    /**
-     * Determines the quorum based result for a specific epoch.
-     * @param selection  a selection of the whole assembly based on which the quorum will be determined probabilisticly
-     * @param epochIndex index of the epoch for which the result shall be determined
-     * @return quorum based result
-     * */
-    public QuorumBasedResult determineQuorumBasedResult( List<OracleReader> selection, int epochIndex) {
-
-        // empty assembly
-        if(selection.size() == 0)
-            return new QuorumBasedResult(0, 0, null);
-
-        // if epoch is ongoing or hasn't even started yet
-        if(epochIndex < 0 || epochIndex > qr.lastCompletedEpoch())
-            return new QuorumBasedResult(0, selection.size(),null);
-
-        // TODO decide whether this is okay when using probabilistic quorum
-        // return result from history if already determined -> increases efficiency
-        if(alreadyDeterminedQuorumBasedResults.keySet().contains(epochIndex))
-            return alreadyDeterminedQuorumBasedResults.get(epochIndex);
-
-        // determine result
-        QuorumBasedResult quorumBasedResult = findConsensus(selection.size(), gatherWeightedResults(selection, epochIndex));
-
-        // add result to list of already known results
-        alreadyDeterminedQuorumBasedResults.put(epochIndex, quorumBasedResult);
-
-        return quorumBasedResult;
+    public void addOracles(List<String> oracleIDs) {
+        if(oracleIDs == null)
+            throw new NullPointerException("parameter 'oracleIDs' is null");
+        for(String oracleID : oracleIDs)
+            oracleReaders.add(new OracleReader(oracleID));
     }
 
     /**
      * Ensures that every oracle in the assembly has its Statement for a certain epoch available.
      * @param selection         a selection of the whole assembly (allows probabilisticly determined quorum)
-     * @param forHashStatements fetches HashStatements if TRUE, ResultStatements if FALSE
-     * @param epoch             index of the epoch to be fetched
      * TODO optimize fetching by putting all findTransaction() requests into a single API call
      * */
-    public void fetchEpoch(List<OracleReader> selection, boolean forHashStatements, int epoch) {
+    public void fetchStatements(List<OracleReader> selection, StatementIAMIndex index) {
 
-        String[] addresses = new String[selection.size()];
-        for (int i = 0; i < addresses.length; i++) {
-            OracleReader or = selection.get(i);
-            addresses[i] = (forHashStatements ? or.getHashReader() : or.getResultReader()).buildAddress(epoch+1);
-        }
+        String[] addresses = buildStatementAddresses(selection, index);
 
         List<Transaction> preload = TangleAPI.getInstance().findTransactionsByAddresses(addresses);
 
         for (OracleReader o : selection)
-            o.readStatement(preload, forHashStatements, epoch);
+            o.readStatement(preload, index);
     }
 
-    /**
-     * Ensures that every oracle in the assembly has its Statement for a certain epoch available.
-     * @param forHashStatements fetches HashStatements if TRUE, ResultStatements if FALSE
-     * @param epoch             index of the epoch to be fetched
-     * */
-    public void fetchEpoch(boolean forHashStatements, int epoch) {
-        fetchEpoch(oracleReaders, forHashStatements, epoch);
-    }
-
-    /**
-     * Weights all results of a certain epoch by the voting power of the respective oracles.
-     * This is the basis to determine the quorum. Assumes that the oracles have already been
-     * updated with fetchEpoch().
-     * @param selection  a selection of the whole assembly based on which the quorum will be determined probabilisticly
-     * @param epochIndex index of the requested epoch
-     * @return HashMap mapping every result to its accumulated voting power
-     * */
-    private HashMap<String, Double> gatherWeightedResults(List<OracleReader> selection, int epochIndex) {
-
-        HashMap<String, Double> weightedResults = new HashMap<>();
-
-        for(OracleReader oracleReader : selection) {
-
-            // determine oracles result, ignore result if not found or hash statement invalid
-            oracleReader.readStatement(null, true, epochIndex);
-            ResultStatement resStat = (ResultStatement)oracleReader.readStatement(null,false, epochIndex);
-
-            if(resStat == null || !resStat.isHashStatementValid()) continue;
-            String result = resStat.getContent();
-
-            // add vote to HashMap
-            double count = weightedResults.containsKey(result) ? weightedResults.get(result) : 0;
-            weightedResults.put(resStat.getContent(), count+1); // TODO allow individual oracle voting weights
+    private static String[] buildStatementAddresses(List<OracleReader> selection, StatementIAMIndex index) {
+        String[] addresses = new String[selection.size()];
+        for (int i = 0; i < addresses.length; i++) {
+            OracleReader oracleReader = selection.get(i);
+            addresses[i] = oracleReader.getReader().buildAddress(index);
         }
-
-        return weightedResults;
+        return addresses;
     }
 
     /**
-     * Determines the QuorumBasedResult from the weighted ResultStatements of an epoch.
-     * @param maxScore        maximum possible score (= amount of oracles examined)
-     * @param weightedResults a map mapping every result of an epoch to its respective voting power
-     * @return the quorum based result
+     * Ensures that every oracle in the assembly has its statement for a certain epoch available.
      * */
-    private QuorumBasedResult findConsensus(double maxScore, Map<String, Double> weightedResults) {
-
-        // init score variables
-        String highScoreResult = null;
-        double highScore = 0;
-
-        // search for result with highest voting score
-        for(String result : weightedResults.keySet()) {
-            double score = weightedResults.get(result);
-
-            // new high score result found?
-            if(score > highScore) {
-                highScoreResult = result;
-                highScore = score;
-            }
-        }
-
-        // return result with highest score or NULL if it doesn't have at least 2/3 of votes
-        highScoreResult = highScore >= maxScore * QUORUM_MIN ? highScoreResult : null;
-
-        return new QuorumBasedResult(highScore, oracleReaders.size(), highScoreResult);
+    public void fetchStatements(StatementIAMIndex index) {
+        fetchStatements(oracleReaders, index);
     }
 
     /**
@@ -187,7 +92,7 @@ public class Assembly {
 
             // neutral rating for qnode.statements that were ignored in the last epoch
             // due to not being existent or following an invalid hash statement
-            ResultStatement resultEpoch = (ResultStatement)oracleReader.readStatement(null,false, epochIndex);
+            ResultStatement resultEpoch = oracleReader.readResultStatement(epochIndex);
             if(resultEpoch == null || !resultEpoch.isHashStatementValid()) {
                 ratings[i] = 0;
                 continue;
@@ -230,7 +135,15 @@ public class Assembly {
         return oracleReaders.size();
     }
 
-    protected int[] getRatings() {
+    int[] getRatings() {
         return ratings == null ? new int[oracleReaders.size()] : ratings;
+    }
+
+    public QubicReader getQubicReader() {
+        return qubicReader;
+    }
+
+    public ConsensusBuilder getConsensusBuilder() {
+        return consensusBuilder;
     }
 }

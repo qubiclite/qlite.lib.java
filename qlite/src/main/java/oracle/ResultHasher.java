@@ -1,5 +1,6 @@
 package oracle;
 
+import oracle.statements.ResultStatement;
 import org.bouncycastle.util.encoders.Hex;
 
 import java.nio.charset.StandardCharsets;
@@ -20,10 +21,10 @@ public class ResultHasher {
 
     /**
      * Creates hash for HashStatement.
-     * @param salt salt (a random nonce to prevent rainbow tables)
-     * @param result result string for subsequent ResultStatement
      **/
-    public static String hash(String salt, String result) {
-        return new String(Hex.encode(digest.digest((salt+result).getBytes(StandardCharsets.US_ASCII))));
+    public static String hash(ResultStatement resultStatement) {
+        String nonced = resultStatement.getNonce()+resultStatement.getContent();
+        byte[] noncedBytes = nonced.getBytes(StandardCharsets.US_ASCII);
+        return new String(Hex.encode(digest.digest(noncedBytes)));
     }
 }

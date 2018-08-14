@@ -26,7 +26,7 @@ public class FunctionQubicFetch extends Function {
         QuorumBasedResult qbr;
 
         if(qubicRoot.equals(qlvm.getOracleWriter().getQubicReader().getID()))
-            qbr = qlvm.getOracleWriter().getAssembly().determineQuorumBasedResult(epochIndex);
+            qbr = qlvm.getOracleWriter().getAssembly().getConsensusBuilder().buildConsensus(epochIndex);
         else
             qbr = InterQubicResultFetcher.fetchResult(qubicRoot, epochIndex);
 

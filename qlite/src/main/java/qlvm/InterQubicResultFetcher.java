@@ -4,9 +4,12 @@ import constants.GeneralConstants;
 import oracle.Assembly;
 import oracle.OracleReader;
 import oracle.QuorumBasedResult;
+import oracle.statements.HashStatementIAMIndex;
+import oracle.statements.ResultStatementIAMIndex;
+import oracle.statements.StatementIAMIndex;
+import oracle.statements.StatementType;
 import qubic.QubicReader;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -17,7 +20,7 @@ import java.util.List;
  * */
 public class InterQubicResultFetcher {
 
-    private static final HashMap<String, Assembly> assemblies = new HashMap<>();
+    private static final HashMap<String, Assembly> knownAssemblies = new HashMap<>();
 
     /**
      * Fetches the QuorumBasedResult from any qubic.
@@ -26,14 +29,8 @@ public class InterQubicResultFetcher {
      * @return the fetched QuorumBasedResult
      * */
     public static QuorumBasedResult fetchResult(String qubicId, int epochIndex) {
-
         Assembly assembly = getAssembly(qubicId);
-        List<OracleReader> selection = assembly.selectRandomOracleReaders(GeneralConstants.QUORUM_MAX_ORACLE_SELECTION_SIZE);
-
-        assembly.fetchEpoch(selection,true, epochIndex);
-        assembly.fetchEpoch(selection, false, epochIndex);
-
-        return assembly.determineQuorumBasedResult(selection, epochIndex);
+        return findConsensus(assembly, epochIndex);
     }
     /**
      * Fetches the QuorumBasedResult from any qubic.
@@ -42,45 +39,34 @@ public class InterQubicResultFetcher {
      * @return the fetched QuorumBasedResult
      * */
     public static QuorumBasedResult fetchResult(QubicReader qubicReader, int epochIndex) {
-
         Assembly assembly = getAssembly(qubicReader);
+        return findConsensus(assembly, epochIndex);
+    }
 
-        assembly.fetchEpoch(true, epochIndex);
-        assembly.fetchEpoch(false, epochIndex);
-
-        return assembly.determineQuorumBasedResult(epochIndex);
+    private static QuorumBasedResult findConsensus(Assembly assembly, int epochIndex) {
+        List<OracleReader> selection = assembly.selectRandomOracleReaders(GeneralConstants.QUORUM_MAX_ORACLE_SELECTION_SIZE);
+        assembly.fetchStatements(selection, new HashStatementIAMIndex(epochIndex));
+        assembly.fetchStatements(selection, new ResultStatementIAMIndex(epochIndex));
+        return assembly.getConsensusBuilder().buildConsensus(selection, epochIndex);
     }
 
     private static Assembly getAssembly(String qubicID) {
-
-        Assembly assembly;
-
-        if(assemblies.containsKey(qubicID)) {
-            assembly = assemblies.get(qubicID);
-        } else {
-            QubicReader qr = new QubicReader(qubicID);
-            List<String> assemblyList = qr.getAssemblyList();
-            assembly = new Assembly(qr);
-            assembly.addOracles(assemblyList);
-            assemblies.put(qr.getID(), assembly);
-        }
-
-        return assembly;
+        return knownAssemblies.containsKey(qubicID)
+            ? knownAssemblies.get(qubicID)
+            : createAssembly(new QubicReader(qubicID));
     }
 
-    private static Assembly getAssembly(QubicReader qr) {
+    private static Assembly getAssembly(QubicReader qubicReader) {
+        return knownAssemblies.containsKey(qubicReader.getID())
+                ? knownAssemblies.get(qubicReader.getID())
+                : createAssembly(qubicReader);
+    }
 
-        Assembly assembly;
-
-        if(assemblies.containsKey(qr.getID())) {
-            assembly = assemblies.get(qr.getID());
-        } else {
-            List<String> assemblyList = qr.getAssemblyList();
-            assembly = new Assembly(qr);
-            assembly.addOracles(assemblyList);
-            assemblies.put(qr.getID(), assembly);
-        }
-
+    private static Assembly createAssembly(QubicReader qr) {
+        List<String> assemblyList = qr.getAssemblyList();
+        Assembly assembly = new Assembly(qr);
+        assembly.addOracles(assemblyList);
+        knownAssemblies.put(qr.getID(), assembly);
         return assembly;
     }
 }

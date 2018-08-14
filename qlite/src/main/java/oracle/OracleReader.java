@@ -6,10 +6,8 @@ import iam.exceptions.CorruptIAMStreamException;
 import exceptions.InvalidStatementException;
 import jota.model.Transaction;
 import iam.IAMReader;
+import oracle.statements.*;
 import org.json.JSONObject;
-import oracle.statements.HashStatement;
-import oracle.statements.ResultStatement;
-import oracle.statements.Statement;
 
 import java.util.HashMap;
 import java.util.List;
@@ -25,11 +23,12 @@ import java.util.List;
 public class OracleReader {
 
     private final IAMReader reader;
-    private final IAMKeywordReader resultReader, hashReader;
+
+    private final HashStatementReader hashStatementReader;
+    private final ResultStatementReader resultStatementReader;
 
     // a list of all already fetched valid statements (for efficiency purposes)
     private final HashMap<Integer, ResultStatement> resultStatements = new HashMap<>();
-    private final HashMap<Integer, HashStatement> hashStatements = new HashMap<>();
 
     /**
      * Initializes TangleReaders for HashStatements and ResultStatements.
@@ -37,61 +36,46 @@ public class OracleReader {
      * */
     public OracleReader(String id) throws CorruptIAMStreamException {
         reader = new IAMReader(id);
-        resultReader = new IAMKeywordReader(reader, OracleWriter.ORACLE_RESULT_STREAM_KEYWORD);
-        hashReader = new IAMKeywordReader(reader, OracleWriter.ORACLE_HASH_STREAM_KEYWORD);
+        hashStatementReader = new HashStatementReader(reader);
+        resultStatementReader = new ResultStatementReader(reader, hashStatementReader);
     }
 
-    /**
-     * Fetches the Statement at a certain position from the respective oracles IAM stream
-     * if it exists and is well-formed. Can be used both for HashStatement and ResultStatement.
-     * If the Statement has already been fetched before, it will just return the old one.
-     * @param preload         resource of prefetched transactions for efficiency purposes, optional (set to null if not required)
-     * @param isHashStatement fetches HashStatement if TRUE, ResultStatement if FALSE
-     * @param epoch           epoch index for desired Statement
-     * @return the fetched Statement, NULL if not existent or malformed
-     * */
-    Statement readStatement(List<Transaction> preload, boolean isHashStatement, int epoch) {
+    public ResultStatement readResultStatement(int epoch) {
+        return readResultStatement(null, epoch);
+    }
 
-        HashMap map = (isHashStatement ? hashStatements : resultStatements);
-        if(map.containsKey(epoch))
-            return (Statement)map.get(epoch);
+    public ResultStatement readResultStatement(List<Transaction> preload, int epoch) {
+        return resultStatementReader.read(preload, epoch);
+    }
 
-        final IAMKeywordReader reader = isHashStatement ? hashReader : resultReader;
+    public HashStatement readHashStatement(int epoch) {
+        return readHashStatement(null, epoch);
+    }
 
-        // read JSONObject from tangle stream
-        JSONObject statObj = reader.readFromSelection(epoch+1, preload); // +1 because address for epoch #0 is ...999A, not 9999
-        if(statObj == null)
-            return null;
+    public HashStatement readHashStatement(List<Transaction> preload, int epoch) {
+        return hashStatementReader.read(preload, epoch);
+    }
 
-        Statement newStat;
+    public Statement readStatement(StatementIAMIndex index) {
+        return readStatement(null, index);
+    }
 
-        try {
-            newStat = isHashStatement ? HashStatement.fromJSON(statObj) : ResultStatement.fromJSON(statObj);
-        } catch (InvalidStatementException e) {
-            return null;
+    public Statement readStatement(List<Transaction> preload, StatementIAMIndex index) {
+        switch (index.getStatementType()) {
+            case HASH_STATEMENT:
+                return readHashStatement(preload, index.getEpoch());
+            case RESULT_STATEMENT:
+                return readResultStatement(preload, index.getEpoch());
+            default:
+                throw new IllegalStateException("unknown statement type: " + index.getStatementType().name());
         }
-
-        // accept HashStatement because order is correct (HashStatement needs to be received earlier than ResultStatement)
-        if(!isHashStatement)
-            ((ResultStatement)newStat).setHashEpoch(hashStatements.get(epoch));
-
-        // add to HashMap for future use
-        if(isHashStatement)
-            hashStatements.put(epoch, (HashStatement) newStat);
-        else
-            resultStatements.put(epoch, (ResultStatement) newStat);
-        return  newStat;
     }
 
     public String getID() {
         return reader.getID();
     }
 
-    public IAMKeywordReader getResultReader() {
-        return resultReader;
-    }
-
-    public IAMKeywordReader getHashReader() {
-        return hashReader;
+    public IAMReader getReader() {
+        return reader;
     }
 }

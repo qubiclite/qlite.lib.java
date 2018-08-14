@@ -11,13 +11,13 @@ public class QubicReaderTest {
     public void testReadQubicTransaction() {
 
         QubicWriter qubicWriter = new QubicWriter();
-        EditableQubicSpecification eqs = qubicWriter.getEditableSpecification();
+        EditableQubicSpecification eqs = qubicWriter.getEditable();
 
         final int runtimeLimit = 9;
         final int hashPeriodDuration = 17;
         final String code = "return(33);";
 
-        eqs.setRunTimeLimit(runtimeLimit);
+        eqs.setRuntimeLimit(runtimeLimit);
         eqs.setHashPeriodDuration(hashPeriodDuration);
         eqs.setCode(code);
 
