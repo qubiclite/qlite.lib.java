@@ -51,6 +51,6 @@ public class IAMWriterTest {
     public void testNonAsciiMessage() {
         JSONObject message = new JSONObject();
         message.put("no ascii", "ä");
-        iamWriter.publish(new IAMIndex(0), message);
+        iamWriter.write(new IAMIndex(0), message);
     }
 }

@@ -13,6 +13,6 @@ public class IAMKeywordWriter {
     }
 
     public void publish(long position, JSONObject message) {
-        generalWriter.publish(new IAMIndex(keyword, position), message);
+        generalWriter.write(new IAMIndex(keyword, position), message);
     }
 }

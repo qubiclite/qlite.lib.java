@@ -8,8 +8,8 @@ import java.security.InvalidParameterException;
 public class IAMIndex {
 
     public static final int STREAM_HANDLE_LENGTH = 30;
-    private static final int MAX_KEYWORD_LENGTH = 10,
-            MAX_POSITION_LENGTH = TryteTool.TRYTES_PER_ADDRESS - STREAM_HANDLE_LENGTH - MAX_KEYWORD_LENGTH;
+    public static final int MAX_KEYWORD_LENGTH = 30;
+    private static final int  MAX_POSITION_LENGTH = TryteTool.TRYTES_PER_ADDRESS - STREAM_HANDLE_LENGTH - MAX_KEYWORD_LENGTH;
 
     private final long position;
     private final String keyword;

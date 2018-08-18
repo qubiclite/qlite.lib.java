@@ -282,7 +282,6 @@ public class QLVM {
     private void putVariable(String varName, String value) {
         if(value != null && value.length() > GeneralConstants.QLVM_MAX_VALUE_LENGTH) throw new QLValueMaxLengthExceeded(value);
         variables.put(varName, value);
-
     }
     /**
      * Maps a value expression to a concrete value (= normalization) to be used by the context.

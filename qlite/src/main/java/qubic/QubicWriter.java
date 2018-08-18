@@ -1,6 +1,7 @@
 package qubic;
 
 import constants.TangleJSONConstants;
+import exceptions.NoQubicTransactionException;
 import iam.IAMIndex;
 import iam.IAMWriter;
 import org.json.JSONException;
@@ -29,6 +30,7 @@ public class QubicWriter {
     private final List<String> assembly = new LinkedList<>();
     private String qubicTransactionHash, assemblyTransactionHash;
     private final EditableQubicSpecification editable;
+    private QubicSpecification finalSpecification;
 
     private QubicWriterState state = QubicWriterState.PRE_ASSEMBLY_PHASE;
 
@@ -42,10 +44,21 @@ public class QubicWriter {
      * @param writer IAMStream of the qubic
      * */
     public QubicWriter(IAMWriter writer) {
-        this.writer = new IAMWriter();
-        QubicReader qr = new QubicReader(writer.getID());
-        editable = new EditableQubicSpecification(qr.getSpecification());
-        state = determineQubicWriterStateFromQubicReader(qr);
+        this.writer = writer;
+
+        EditableQubicSpecification editable;
+
+        try {
+            QubicReader qr = new QubicReader(writer.getID());
+            finalSpecification = qr.getSpecification();
+            editable = new EditableQubicSpecification(qr.getSpecification());
+            state = determineQubicWriterStateFromQubicReader(qr);
+        } catch (NoQubicTransactionException e) {
+            editable = new EditableQubicSpecification();
+            state = QubicWriterState.PRE_ASSEMBLY_PHASE;
+        }
+
+        this.editable = editable;
     }
 
     /**
@@ -55,10 +68,11 @@ public class QubicWriter {
 
         if(state != QubicWriterState.PRE_ASSEMBLY_PHASE)
             throw new IllegalStateException("qubic transaction can only be published if qubic is in state PRE_ASSEMBLY_PHASE, but qubic is in state " + state.name());
-
         editable.throwExceptionIfTooLateToPublish();
-        JSONObject qubicTransactionJSON = editable.generateQubicTransactionJSON();
-        qubicTransactionHash = writer.publish(QUBIC_TRANSACTION_IAM_INDEX, qubicTransactionJSON);
+
+        finalSpecification = new QubicSpecification(editable);
+        JSONObject qubicTransactionJSON = finalSpecification.generateQubicTransactionJSON();
+        qubicTransactionHash = writer.write(QUBIC_TRANSACTION_IAM_INDEX, qubicTransactionJSON);
         state = QubicWriterState.ASSEMBLY_PHASE;
     }
 
@@ -77,7 +91,7 @@ public class QubicWriter {
     public synchronized void publishAssemblyTransaction() {
         throwExceptionIfCannotPublishAssemblyTransaction();
         JSONObject assemblyTransaction = generateAssemblyTransaction(assembly);
-        assemblyTransactionHash = writer.publish(ASSEMBLY_TRANSACTION_IAM_INDEX, assemblyTransaction);
+        assemblyTransactionHash = writer.write(ASSEMBLY_TRANSACTION_IAM_INDEX, assemblyTransaction);
         state = QubicWriterState.EXECUTION_PHASE;
     }
 
@@ -120,6 +134,8 @@ public class QubicWriter {
     }
 
     private static QubicWriterState determineQubicWriterStateFromQubicReader(QubicReader qr) {
+        if(qr.getSpecification() == null)
+            return QubicWriterState.PRE_ASSEMBLY_PHASE;
         if(qr.getAssemblyList() != null)
             return QubicWriterState.EXECUTION_PHASE;
         return (qr.getSpecification().getExecutionStartUnix() < System.currentTimeMillis()/1000) ? QubicWriterState.ABORTED : QubicWriterState.ASSEMBLY_PHASE;
@@ -133,7 +149,7 @@ public class QubicWriter {
         return assemblyTransactionHash;
     }
 
-    public IAMWriter getWriter() {
+    public IAMWriter getIAMWriter() {
         return writer;
     }
 
@@ -148,7 +164,7 @@ public class QubicWriter {
     }
 
     public QubicSpecification getSpecification() {
-        return state == QubicWriterState.PRE_ASSEMBLY_PHASE ? editable : new QubicSpecification(editable);
+        return finalSpecification != null ? finalSpecification : editable;
     }
 
     public String getState() {

@@ -26,7 +26,7 @@ public class IAMReaderTest {
         IAMIndex index = new IAMIndex(position);
         JSONObject sent = new JSONObject();
         sent.put("object", object);
-        String hash = iamWriter.publish(index, sent);
+        String hash = iamWriter.write(index, sent);
         JSONObject read = iamReader.read(index);
         assertEquals("hash of failed: " + hash, String.valueOf(sent), String.valueOf(read));
     }
@@ -39,13 +39,13 @@ public class IAMReaderTest {
         JSONObject message2 = new JSONObject();
         message2.put("planet", "venus");
 
-        iamWriter.publish(new IAMIndex(100), message1);
+        iamWriter.write(new IAMIndex(100), message1);
         assertNotNull(iamReader.read(new IAMIndex(100)));
 
-        iamWriter.publish(new IAMIndex(100), message1);
+        iamWriter.write(new IAMIndex(100), message1);
         assertNotNull(iamReader.read(new IAMIndex(100)));
 
-        iamWriter.publish(new IAMIndex(100), message2);
+        iamWriter.write(new IAMIndex(100), message2);
         assertNull(iamReader.read(new IAMIndex(100)));
     }
 }

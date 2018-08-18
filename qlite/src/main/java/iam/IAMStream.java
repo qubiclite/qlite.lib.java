@@ -25,8 +25,8 @@ public abstract class IAMStream {
      * @param message the custom message of the IAM packet.
      * @return string that is required to be signed in the signature field of an IAM packet
      * */
-    static String buildStringToSignForIAMPacket(IAMIndex index, JSONObject message) {
-        return index + "!" + String.valueOf(message);
+    String buildStringToSignForIAMPacket(IAMIndex index, JSONObject message) {
+        return buildAddress(index) + String.valueOf(message);
     }
 
     /**

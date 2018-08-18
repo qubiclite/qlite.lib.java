@@ -7,6 +7,7 @@ import qlvm.functions.*;
 import qlvm.functions.data.FunctionSizeOf;
 import qlvm.functions.iam.FunctionIAMRead;
 import qlvm.functions.iota.*;
+import qlvm.functions.qubic.FunctionQubicConsensus;
 import qlvm.functions.qubic.FunctionQubicFetch;
 import qlvm.functions.string.FunctionSubstr;
 
@@ -20,6 +21,7 @@ public final class FunctionCall {
 
     private static final Function[] functions = {
         new FunctionQubicFetch(),
+        new FunctionQubicConsensus(),
         new FunctionIAMRead(),
         new FunctionIotaBalance(),
         new FunctionSizeOf(),

@@ -45,7 +45,7 @@ public class IAMWriter extends IAMStream {
      * @throws InvalidKeySpecException   if key specification is invalid
      * */
     public IAMWriter(String id, String privateKeyTrytes) throws InvalidKeySpecException {
-        validateID(id);
+        validateID(id = id.toUpperCase());
         this.id = id;
         initSignerKeys(id, privateKeyTrytes);
     }
@@ -58,7 +58,7 @@ public class IAMWriter extends IAMStream {
      * @return hash of sent iota transaction
      * @throws InvalidParameterException if index is negative
      * */
-    public String publish(IAMIndex index, JSONObject message) {
+    public String write(IAMIndex index, JSONObject message) {
         if(!TryteTool.isAsciiString(message.toString()))
             throw new InvalidParameterException("parameter message contains non-ascii characters");
         String signature = generateIAMPacketSignature(index, message);

@@ -1,7 +1,7 @@
 package oracle;
 
 import constants.TangleJSONConstants;
-import iam.IAMKeywordWriter;
+import iam.IAMIndex;
 import iam.IAMWriter;
 import oracle.statements.*;
 import oracle.statements.hash.HashStatement;
@@ -10,10 +10,12 @@ import oracle.statements.hash.HastStatementWriter;
 import oracle.statements.result.ResultStatement;
 import oracle.statements.result.ResultStatementIAMIndex;
 import oracle.statements.result.ResultStatementWriter;
+import org.json.JSONException;
 import qlvm.QLVM;
 import org.json.JSONObject;
 import qubic.QubicReader;
 import tangle.TangleAPI;
+import tangle.TryteTool;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -24,6 +26,7 @@ public class OracleWriter {
     private ResultStatement currentlyProcessedResult;
     private final QubicReader qubicReader;
     private final Assembly assembly;
+
     private final IAMWriter writer;
     private final HastStatementWriter hashStatementWriter;
     private final ResultStatementWriter resultStatementWriter;
@@ -67,7 +70,7 @@ public class OracleWriter {
             firstEpochIndex = epochIndex;
 
         if(epochIndex > 0)
-            fetchStatements(new HashStatementIAMIndex(epochIndex));
+            fetchStatements(new ResultStatementIAMIndex(epochIndex-1));
 
         this.currentlyProcessedResult = new ResultStatement(epochIndex, calcResult(epochIndex));
 
@@ -93,8 +96,31 @@ public class OracleWriter {
      * for the current epoch. Result has already been calculated by doHashStatement().
      * */
     public void doResultStatement() {
-        fetchStatements(new ResultStatementIAMIndex(currentlyProcessedResult.getEpochIndex()));
+        fetchStatements(new HashStatementIAMIndex(currentlyProcessedResult.getEpochIndex()));
         resultStatementWriter.write(currentlyProcessedResult);
+        publishEpochLinkIfSet();
+    }
+
+    private void publishEpochLinkIfSet() {
+        try {
+            JSONObject result = new JSONObject(currentlyProcessedResult.getContent());
+            if(result.has("epoch_link")) {
+                JSONObject epoch_link = result.getJSONObject("epoch_link");
+                long position = epoch_link.getLong("position");
+                String keyword = epoch_link.getString("keyword");
+
+                if(position < 0 || !TryteTool.isTryteSequence(keyword) || keyword.length() > IAMIndex.MAX_KEYWORD_LENGTH
+                        || keyword.equals(StatementType.HASH_STATEMENT.getIAMKeyword())
+                        || keyword.equals(StatementType.RESULT_STATEMENT.getIAMKeyword()))
+                    return;
+
+                JSONObject message = new JSONObject();
+                message.put("type", "epoch link");
+                message.put("qubic", qubicReader.getID());
+                message.put("epoch", currentlyProcessedResult.getEpochIndex());
+                writer.write(new IAMIndex(keyword, position), message);
+            }
+        } catch (JSONException e) {}
     }
 
     /**
@@ -140,7 +166,7 @@ public class OracleWriter {
     public boolean assemble() {
         List<String> acceptedOracles = qubicReader.getAssemblyList();
         boolean accepted = acceptedOracles != null && acceptedOracles.contains(getID());
-        if(accepted && assembly.size() > 0)
+        if(accepted && assembly.size() == 0)
             assembly.addOracles(acceptedOracles);
         return accepted;
     }

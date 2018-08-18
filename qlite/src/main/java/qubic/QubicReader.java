@@ -2,6 +2,7 @@ package qubic;
 
 import constants.GeneralConstants;
 import constants.TangleJSONConstants;
+import exceptions.NoQubicTransactionException;
 import exceptions.UnsupportedVersionException;
 import iam.exceptions.CorruptIAMStreamException;
 import exceptions.InvalidQubicTransactionException;
@@ -136,7 +137,7 @@ class QubicTransactionValidator {
 
     private static void ensureNotNull(JSONObject qubicTransaction) {
         if(qubicTransaction == null)
-            throw new InvalidQubicTransactionException("qubic transaction not found", null);
+            throw new NoQubicTransactionException();
     }
 
     private static void validateStructure(JSONObject qubicTransaction) {

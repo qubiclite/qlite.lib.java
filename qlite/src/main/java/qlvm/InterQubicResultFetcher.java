@@ -1,6 +1,7 @@
 package qlvm;
 
 import constants.GeneralConstants;
+import iam.IAMIndex;
 import oracle.Assembly;
 import oracle.OracleReader;
 import oracle.QuorumBasedResult;
@@ -29,6 +30,11 @@ public class InterQubicResultFetcher {
     public static QuorumBasedResult fetchResult(String qubicId, int epochIndex) {
         Assembly assembly = getAssembly(qubicId);
         return findConsensus(assembly, epochIndex);
+    }
+
+    public static QuorumBasedResult fetchQubicConsensus(String qubicId, IAMIndex index) {
+        Assembly assembly = getAssembly(qubicId);
+        return assembly.getConsensusBuilder().buildIAMConsensus(index);
     }
     /**
      * Fetches the QuorumBasedResult from any qubic.
