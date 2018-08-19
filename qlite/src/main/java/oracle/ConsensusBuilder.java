@@ -47,10 +47,10 @@ public class ConsensusBuilder {
         if(epochIndex < 0 || epochIndex > assembly.getQubicReader().lastCompletedEpoch())
             return new QuorumBasedResult(0, selection.size(),null);
 
-        // TODO decide whether this is okay when using probabilistic quorum
         // return result from history if already determined -> increases efficiency
         if(alreadyDeterminedQuorumBasedResults.keySet().contains(epochIndex))
             return alreadyDeterminedQuorumBasedResults.get(epochIndex);
+
         // empty assembly
         if(selection.size() == 0)
             return new QuorumBasedResult(0, 0, null);
@@ -63,6 +63,11 @@ public class ConsensusBuilder {
 
         return quorumBasedResult;
     }
+
+    public boolean hasAlreadyDeterminedQuorumBasedResult(int epochIndex) {
+        return alreadyDeterminedQuorumBasedResults.containsKey(epochIndex);
+    }
+
     public QuorumBasedResult buildIAMConsensus(IAMIndex index) {
         List<IAMReader> selection = new LinkedList<>();
         for(OracleReader or : assembly.selectRandomOracleReaders(GeneralConstants.QUORUM_MAX_ORACLE_SELECTION_SIZE))
@@ -90,7 +95,7 @@ public class ConsensusBuilder {
     private static void addOraclesVoteToVoting(OracleReader oracleReader, int epochIndex, Map<String, Double> voting) {
         oracleReader.getHashStatementReader().read(epochIndex);
         ResultStatement resultStatement = oracleReader.getResultStatementReader().read(epochIndex);
-        System.out.println(oracleReader.getID() + " " + (resultStatement != null ? resultStatement.isHashStatementValid() : "_") + " " + epochIndex);
+
         if(resultStatement != null && resultStatement.isHashStatementValid())
             addVote(voting, resultStatement.getContent());
     }

@@ -31,7 +31,6 @@ public class OracleWriter {
     private final HastStatementWriter hashStatementWriter;
     private final ResultStatementWriter resultStatementWriter;
 
-    private int firstEpochIndex = -1; // epoch at which the oracle started monitoring the qubic epochs. necessary to decide when to use InterQubicResultFetcher for own assembly
     private String name = "ql-node";
     private final LinkedList<OracleListener> oracleListeners = new LinkedList<>();
 
@@ -66,8 +65,6 @@ public class OracleWriter {
      * @param epochIndex index of the current epoch
      * */
     public void doHashStatement(int epochIndex) {
-        if(firstEpochIndex < 0)
-            firstEpochIndex = epochIndex;
 
         if(epochIndex > 0)
             fetchStatements(new ResultStatementIAMIndex(epochIndex-1));

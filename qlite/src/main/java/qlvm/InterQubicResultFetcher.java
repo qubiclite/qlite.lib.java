@@ -49,8 +49,10 @@ public class InterQubicResultFetcher {
 
     private static QuorumBasedResult findConsensus(Assembly assembly, int epochIndex) {
         List<OracleReader> selection = assembly.selectRandomOracleReaders(GeneralConstants.QUORUM_MAX_ORACLE_SELECTION_SIZE);
-        assembly.fetchStatements(selection, new HashStatementIAMIndex(epochIndex));
-        assembly.fetchStatements(selection, new ResultStatementIAMIndex(epochIndex));
+        if(!assembly.getConsensusBuilder().hasAlreadyDeterminedQuorumBasedResult(epochIndex)) {
+            assembly.fetchStatements(selection, new HashStatementIAMIndex(epochIndex));
+            assembly.fetchStatements(selection, new ResultStatementIAMIndex(epochIndex));
+        }
         return assembly.getConsensusBuilder().buildConsensus(selection, epochIndex);
     }
 

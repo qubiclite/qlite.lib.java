@@ -1,6 +1,7 @@
 package oracle;
 
 import jota.model.Transaction;
+import oracle.statements.StatementType;
 import oracle.statements.result.ResultStatement;
 import oracle.statements.StatementIAMIndex;
 import qubic.QubicReader;
@@ -20,6 +21,8 @@ public class Assembly {
     private final List<OracleReader> oracleReaders = new LinkedList<>();
     private final ConsensusBuilder consensusBuilder = new ConsensusBuilder(this);
     private int[] ratings;
+
+    private int firstEpochIndex = -1; // epoch at which the oracle started monitoring the qubic epochs. necessary to decide when to use InterQubicResultFetcher for own assembly
 
     public Assembly(QubicReader qubicReader) {
         this.qubicReader = qubicReader;
@@ -43,6 +46,8 @@ public class Assembly {
      * TODO optimize fetching by putting all findTransaction() requests into a single API call
      * */
     public void fetchStatements(List<OracleReader> selection, StatementIAMIndex index) {
+        if(firstEpochIndex < 0 && index.getStatementType() == StatementType.RESULT_STATEMENT)
+            firstEpochIndex = index.getEpoch();
 
         String[] addresses = buildStatementAddresses(selection, index);
 
@@ -124,6 +129,10 @@ public class Assembly {
             amount--;
         }
         return selection;
+    }
+
+    public boolean hasMonitoredEpoch(int epochIndex) {
+        return firstEpochIndex >= 0 && firstEpochIndex <= epochIndex;
     }
 
     /**

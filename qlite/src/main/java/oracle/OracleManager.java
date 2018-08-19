@@ -30,8 +30,9 @@ public class OracleManager {
         }.start();
     }
 
+
     /**
-     * Runs the oracle life cycle synchronously as opposted to start().
+     * Runs the oracle life cycle synchronously as opposed to start().
      * */
     public void startSynchronous() {
 
