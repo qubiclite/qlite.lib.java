@@ -229,4 +229,8 @@ public class TangleAPI {
     public int getMWM() {
         return mwm;
     }
+
+    public String getNodeAddress() {
+        return api.getProtocol() + "://" + api.getHost() + ":" + api.getPort();
+    }
 }
