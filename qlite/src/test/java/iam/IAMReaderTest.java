@@ -24,20 +24,16 @@ public class IAMReaderTest {
 
     private void testPublishAndReadObject(int position, Object object) {
         IAMIndex index = new IAMIndex(position);
-        JSONObject sent = new JSONObject();
-        sent.put("object", object);
+        JSONObject sent = new JSONObject().put("object", object);
         String hash = iamWriter.write(index, sent);
         JSONObject read = iamReader.read(index);
-        assertEquals("hash of failed: " + hash, String.valueOf(sent), String.valueOf(read));
+        assertEquals("hash of failed iam package: " + hash, String.valueOf(sent), String.valueOf(read));
     }
 
     @Test
-    public void multiPublish() {
-        JSONObject message1 = new JSONObject();
-        message1.put("planet", "mars");
-
-        JSONObject message2 = new JSONObject();
-        message2.put("planet", "venus");
+    public void testMultipleIAMPacketConflicts() {
+        JSONObject message1 = new JSONObject().put("planet", "mars");
+        JSONObject message2 = new JSONObject().put("planet", "venus");
 
         iamWriter.write(new IAMIndex(100), message1);
         assertNotNull(iamReader.read(new IAMIndex(100)));
