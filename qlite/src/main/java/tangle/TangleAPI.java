@@ -24,7 +24,7 @@ import java.util.Map;
  * */
 public class TangleAPI {
 
-    private static TangleAPI instance = new TangleAPI("https", "nodes.devnet.iota.org", "443", 9, true);
+    private static TangleAPI instance = new TangleAPI(new NodeAddress("https://nodes.devnet.iota.org:443"), 9, true);
 
     private static final String TAG = "QLITE9999999999999999999999";
 
@@ -36,31 +36,21 @@ public class TangleAPI {
     }
 
     /**
-     * Changes the node used.
-     * @param protocol protocol of node api address (http/https)
-     * @param host     host name of node api address (e.g. node.example.org)
-     * @param port     port of node api (e.g. 14265 or 443)
-     * @param mwm      min weight magnitude (14 on mainnet, 9 on testnet)
-     * @param localPow TRUE: perform proof-of-work locally, FALSE: perform pow on remote iota node
+     * Changes the node used
+     * @param nodeAddress address of the node to connect to
+     * @param mwm         min weight magnitude (14 on mainnet, 9 on testnet)
+     * @param localPow    TRUE: perform proof-of-work locally, FALSE: perform pow on remote iota node
      * */
-    public static void changeNode(String protocol, String host, String port, int mwm, boolean localPow) {
-        instance = new TangleAPI(protocol, host, port, mwm, localPow);
+    public static void changeNode(NodeAddress nodeAddress, int mwm, boolean localPow) {
+        instance = new TangleAPI(nodeAddress, mwm, localPow);
     }
 
-    /**
-     * Creates a new IotaAPI with local proof-of-work enabled.
-     * @param protocol protocol of node api address (http/https)
-     * @param host     host name of node api address (e.g. node.example.org)
-     * @param port     port of node api (e.g. 14265 or 443)
-     * @param mwm      min weight magnitude (14 for mainnet, 9 for testnet)
-     * @param localPow TRUE: perform pow locally, FALSE: outsource pow to remote node
-     * */
-    private TangleAPI(String protocol, String host, String port, int mwm, boolean localPow) {
+    private TangleAPI(NodeAddress nodeAddress, int mwm, boolean localPow) {
 
         IotaAPI.Builder b = new IotaAPI.Builder()
-                .protocol(protocol)
-                .host(host)
-                .port(port);
+                .protocol(nodeAddress.getProtocol())
+                .host(nodeAddress.getHost())
+                .port(nodeAddress.getPort());
 
         if(localPow)
             b = b.localPoW(new PearlDiverLocalPoW());
