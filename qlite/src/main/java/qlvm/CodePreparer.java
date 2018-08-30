@@ -4,10 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 import qlvm.exceptions.compile.QLCompilerException;
 import qlvm.exceptions.compile.QLInvalidSubStructureException;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.Stack;
+import java.util.*;
 
 /**
  * @author microhash
@@ -31,7 +28,7 @@ public class CodePreparer {
      * @param program the complete qubic source code
      * @return main block of program
      * */
-    protected String prepareProgram(String program) {
+    String prepareProgram(String program) {
 
         // isolateStrings
         program = isolateStrings(program);
@@ -40,9 +37,6 @@ public class CodePreparer {
         program = program.toLowerCase();
 
         // TODO ignore comments
-
-        // preserve 'else' whitespace to differenciate between "else nor = 3;" and "elSenor = 3;"
-        program = program.replaceAll("}[ \n]*else[\n ]", "} else&");
 
         // ignore whitespace
         program = program.replace("\n", "");
@@ -164,18 +158,16 @@ public class CodePreparer {
      * @param code the input code that shall be processed in this method
      * @return the resulting code with delimited control structures
      * */
-    protected String delimitAllControlStructures(String code) {
+    private String delimitAllControlStructures(String code) {
 
-        LinkedList<String> lines = new LinkedList(Arrays.asList(code.split(";")));
+        LinkedList<String> lines = new LinkedList<>(Arrays.asList(code.split(";")));
 
         for(int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
             String line = lines.get(lineIndex);
-            if(line.startsWith("if$") || line.startsWith("while$") || line.startsWith("else&")) { // (else not required yet)
+            if(line.startsWith("if$") || line.startsWith("while$")) {
                 String[] insertLines = delimitSingleControlStructure(line);
                 lines.set(lineIndex, insertLines[0]);
-                for(int i = 1; i < insertLines.length; i++) {
-                    lines.add(lineIndex+i, insertLines[i]);
-                }
+                lines.add(lineIndex+1, insertLines[1]);
             }
         }
 
@@ -189,19 +181,19 @@ public class CodePreparer {
      * */
     private String[] delimitSingleControlStructure(String line) {
 
-        String block = line.startsWith("else&") ? line.substring(5) : line.split("\\$", 3)[2];
+        String block = line.startsWith("else$") ? line.substring(4) : line.split("\\$", 3)[2];
 
         if(!block.startsWith("$b"))
-            throw  new QLCompilerException("control structures (if/while/else) require a braces block '{ ... }'");
+            throw new QLCompilerException("control structures (if/while/else) require a braces block '{ ... }'");
 
         String afterStatement = block.split("\\$", 3)[2];
-        String controlStucture = line.substring(0, line.length()-afterStatement.length());
 
-        if(line.startsWith("if") && block.contains("else&")) {
-            afterStatement = delimitSingleControlStructure("else&" + line.split("else&")[1])[1];
-            return new String[] {line.substring(0, line.length()-afterStatement.length()).replace("else&", ""), afterStatement};
+        if(line.startsWith("if$") && afterStatement.startsWith("else$")) {
+            afterStatement = delimitSingleControlStructure(afterStatement)[1];
+            return new String[] {line.substring(0, line.length()-afterStatement.length()).replace("else$", "$"), afterStatement};
         }
 
-        return new String[] {controlStucture, afterStatement};
+        String controlStructure = line.substring(0, line.length()-afterStatement.length());
+        return new String[] {controlStructure, afterStatement};
     }
 }

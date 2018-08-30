@@ -26,8 +26,9 @@ public class QLVM {
     private final static String GENERAL_SUBSTRUC_REGEX = "[$][rsb][0-9]+[$]";
     private final static String INDEXED_EXPRESSION = VARIABLE_REGEX+"("+S_SUBSTRUC_REGEX+")+";
     private final static String VAR_OR_INDEXED = VARIABLE_REGEX+"("+S_SUBSTRUC_REGEX+")*";
+    private final static String IF_REGEX = "if"+R_SUBSTRUC_REGEX+"("+B_SUBSTRUC_REGEX+"){1,2}";
 
-    private final static Pattern STATEMENT_IF = Pattern.compile("^if"+R_SUBSTRUC_REGEX+"("+B_SUBSTRUC_REGEX+"){1,2}$");
+    private final static Pattern STATEMENT_IF = Pattern.compile("^"+IF_REGEX+"$");
     private final static Pattern STATEMENT_WHILE = Pattern.compile("^while"+R_SUBSTRUC_REGEX+B_SUBSTRUC_REGEX);
     private final static Pattern STATEMENT_ASSIGNMENT = Pattern.compile("^"+VARIABLE_REGEX+"[=]");
     private final static Pattern STATEMENT_INDEXED_ASSIGNMENT = Pattern.compile("^"+INDEXED_EXPRESSION+"[=]");
@@ -107,8 +108,7 @@ public class QLVM {
 
     public static String testRun(String code, int epoch) {
         QLVM qlvm = new QLVM(epoch);
-        String mainBlock = (new CodePreparer(qlvm.subStructureList, qlvm.stringTable)).prepareProgram(code);
-        return qlvm.executeProgram(mainBlock);
+        return qlvm.executeProgram(code);
     }
 
     private QLVM(OracleWriter oracleWriter, int epochIndex) {
