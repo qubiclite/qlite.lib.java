@@ -1,6 +1,7 @@
 package iam;
 
 import constants.TangleJSONConstants;
+import exceptions.IotaAPICallFailedException;
 import iam.exceptions.CorruptIAMStreamException;
 import iam.exceptions.IAMPacketSizeLimitExceeded;
 import iam.signing.Signer;
@@ -58,7 +59,7 @@ public class IAMWriter extends IAMStream {
      * @return hash of sent iota transaction
      * @throws InvalidParameterException if index is negative
      * */
-    public String write(IAMIndex index, JSONObject message) {
+    public String write(IAMIndex index, JSONObject message) throws IotaAPICallFailedException {
         if(!TryteTool.isAsciiString(message.toString()))
             throw new InvalidParameterException("parameter message contains non-ascii characters");
         String signature = generateIAMPacketSignature(index, message);

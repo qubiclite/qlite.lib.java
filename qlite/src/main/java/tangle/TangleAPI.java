@@ -1,6 +1,7 @@
 package tangle;
 
 import cfb.pearldiver.PearlDiverLocalPoW;
+import exceptions.IotaAPICallFailedException;
 import jota.IotaAPI;
 import jota.dto.response.GetBalancesResponse;
 import jota.dto.response.SendTransferResponse;
@@ -28,7 +29,7 @@ public class TangleAPI {
 
     private static final String TAG = "QLITE9999999999999999999999";
 
-    private final IotaAPI api;
+    private final IotaAPI wrappedAPI;
     private int mwm;
 
     public static TangleAPI getInstance() {
@@ -47,15 +48,15 @@ public class TangleAPI {
 
     private TangleAPI(NodeAddress nodeAddress, int mwm, boolean localPow) {
 
-        IotaAPI.Builder b = new IotaAPI.Builder()
+        IotaAPI.Builder builder = new IotaAPI.Builder()
                 .protocol(nodeAddress.getProtocol())
                 .host(nodeAddress.getHost())
                 .port(nodeAddress.getPort());
 
         if(localPow)
-            b = b.localPoW(new PearlDiverLocalPoW());
+            builder.localPoW(new PearlDiverLocalPoW());
 
-        api = b.build();
+        wrappedAPI = new WrappedIotaAPI(builder, 3);
         this.mwm = mwm;
     }
 
@@ -67,13 +68,13 @@ public class TangleAPI {
      * */
     public String sendTrytes(String address, String tryteMessage) {
 
-        LinkedList<Input> inputs = new LinkedList<>();
-        LinkedList<Transfer> transfers = new LinkedList<>();
+        List<Input> inputs = new LinkedList<>();
+        List<Transfer> transfers = new LinkedList<>();
         transfers.add(new Transfer(address, 0, tryteMessage, TAG));
 
         while (true) {
             try {
-                SendTransferResponse response = api.sendTransfer("", 1, 3, mwm, transfers, inputs, "", true, false);
+                SendTransferResponse response = wrappedAPI.sendTransfer("", 1, 3, mwm, transfers, inputs, "", true, false);
                 return response.getTransactions().get(0).getHash();
             } catch (ArgumentException e) {
                 e.printStackTrace();
@@ -110,7 +111,7 @@ public class TangleAPI {
 
         while (transactions == null) {
             try {
-                transactions = api.findTransactionObjectsByAddresses(addresses);
+                return wrappedAPI.findTransactionObjectsByAddresses(addresses);
             } catch (ArgumentException e) {
                 e.printStackTrace();
                 return null;
@@ -175,7 +176,7 @@ public class TangleAPI {
 
         while (transactions == null) {
             try {
-                transactions = api.findTransactionsObjectsByHashes(hashes);
+                transactions = wrappedAPI.findTransactionsObjectsByHashes(hashes);
             } catch (ArgumentException e) {
                 e.printStackTrace();
                 return null;
@@ -207,7 +208,7 @@ public class TangleAPI {
         LinkedList<String> addresses = new LinkedList<>();
         addresses.add(address);
         try {
-            GetBalancesResponse balancesResponse = api.getBalances(1, addresses);
+            GetBalancesResponse balancesResponse = wrappedAPI.getBalances(1, addresses);
             return Long.parseLong(balancesResponse.getBalances()[0]);
         }
         catch (ArgumentException e) {
@@ -221,6 +222,6 @@ public class TangleAPI {
     }
 
     public String getNodeAddress() {
-        return api.getProtocol() + "://" + api.getHost() + ":" + api.getPort();
+        return wrappedAPI.getProtocol() + "://" + wrappedAPI.getHost() + ":" + wrappedAPI.getPort();
     }
 }
