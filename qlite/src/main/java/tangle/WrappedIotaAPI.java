@@ -77,6 +77,6 @@ public class WrappedIotaAPI extends IotaAPI {
     }
 
     private void logThrowable(Throwable t) {
-
+        t.printStackTrace();
     }
 }
