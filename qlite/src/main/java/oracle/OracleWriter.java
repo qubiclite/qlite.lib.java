@@ -168,6 +168,17 @@ public class OracleWriter {
         return accepted;
     }
 
+    public boolean isAcceptedIntoAssembly() {
+        final QubicReader qubic = getQubicReader();
+        final List<String> assemblyList = qubic.getAssemblyList();
+        if(assemblyList == null) {
+            if(qubic.getSpecification().ageOfExecutionPhase() < 0)
+                throw new IllegalStateException("assembly transaction has not been published yet");
+            return false;
+        }
+        return assemblyList.contains(getID());
+    }
+
     /**
      * Registers a OracleListener to subscribe it to future events. Counterpart to unsubscribeOracleListener()
      * @param oracleListener the OracleListener to be registered

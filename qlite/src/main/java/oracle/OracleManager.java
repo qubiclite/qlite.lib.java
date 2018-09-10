@@ -55,29 +55,40 @@ public class OracleManager {
      * HashStatements and ResultStatements until interrupted with terminate().
      * */
     public void runEpochs() {
-        final QubicReader qubic = ow.getQubicReader();
 
         // not part of assembly
-        if(!qubic.getAssemblyList().contains(ow.getID()))
+        if(!ow.isAcceptedIntoAssembly())
             return;
 
-        QubicSpecification spec =  qubic.getSpecification();
-
         state = State.RUNNING;
-        while(state != State.PAUSING) {
+        while(state != State.PAUSING)
+            runEpochAndCatchThrowable();
 
-            final int e = determineEpochToRun();
-            final long epochStart = spec.getExecutionStartUnix() + e * spec.getEpochDuration();
-
-            // run hash epoch
-            takeABreak(epochStart - getUnixTimeStamp());
-            ow.doHashStatement(e);
-
-            // run result epoch
-            takeABreak(epochStart - getUnixTimeStamp() + spec.getHashPeriodDuration());
-            ow.doResultStatement();
-        }
         state = State.PAUSED;
+    }
+
+    private void runEpochAndCatchThrowable() {
+        try {
+            tryToRunEpoch();
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    private void tryToRunEpoch() {
+        final QubicReader qubic = ow.getQubicReader();
+        final QubicSpecification spec =  qubic.getSpecification();
+
+        final int e = determineEpochToRun();
+        final long epochStart = spec.getExecutionStartUnix() + e * spec.getEpochDuration();
+
+        // run hash epoch
+        takeABreak(epochStart - getUnixTimeStamp());
+        ow.doHashStatement(e);
+
+        // run result epoch
+        takeABreak(epochStart - getUnixTimeStamp() + spec.getHashPeriodDuration());
+        ow.doResultStatement();
     }
 
     /**
