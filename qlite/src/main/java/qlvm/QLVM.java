@@ -41,7 +41,7 @@ public class QLVM {
     private final static Pattern STATEMENT_DIV = Pattern.compile("^"+VAR_OR_INDEXED+"/=");
 
     private final static Pattern OBJECT_SUBSTRUCTURE = Pattern.compile("^"+GENERAL_SUBSTRUC_REGEX+"$");
-    private final static Pattern OBJECT_NUMBER = Pattern.compile("^[-]?[0-9]+(\\.[0-9]*)?$");
+    public final static Pattern OBJECT_NUMBER = Pattern.compile("^[-]?[0-9]+(\\.[0-9]*)?$");
     private final static Pattern OBJECT_STRING = Pattern.compile("^%[0-9]+$");
     private final static Pattern OBJECT_FUNCTION_CALL = Pattern.compile("^([a-zA-Z_]+)"+R_SUBSTRUC_REGEX+"$");
     private final static Pattern OBJECT_VARIABLE = Pattern.compile("^"+VARIABLE_REGEX+"$");

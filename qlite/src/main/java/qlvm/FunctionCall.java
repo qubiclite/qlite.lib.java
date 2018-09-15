@@ -5,6 +5,7 @@ import qlvm.exceptions.runtime.QLValueMaxLengthExceeded;
 import qlvm.exceptions.runtime.UnknownFunctionException;
 import qlvm.functions.*;
 import qlvm.functions.data.FunctionSizeOf;
+import qlvm.functions.data.FunctionType;
 import qlvm.functions.iam.FunctionIAMRead;
 import qlvm.functions.iota.*;
 import qlvm.functions.qubic.FunctionQubicConsensus;
@@ -26,6 +27,7 @@ public final class FunctionCall {
         new FunctionIAMRead(),
         new FunctionIotaBalance(),
         new FunctionSizeOf(),
+        new FunctionType(),
         new FunctionSubstr(),
         new FunctionHash(),
     };
