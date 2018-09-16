@@ -12,7 +12,7 @@ public class MathOperations {
 
     public static String doOperation(String operator, String[] par) {
         // string concatenation
-        if(operator.equals("+") && par[0].charAt(0) == '\'' || par[1].charAt(0) == '\'') {
+        if(operator.equals("+") && (par[0].charAt(0) == '\'' || par[1].charAt(0) == '\'')) {
             if(par[0].charAt(0) == '\'') par[0] = par[0].substring(1, par[0].length()-1);
             if(par[1].charAt(0) == '\'') par[1] = par[1].substring(1, par[1].length()-1);
             return '\''+par[0] + par[1]+'\'';
