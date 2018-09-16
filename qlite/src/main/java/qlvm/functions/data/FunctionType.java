@@ -13,20 +13,20 @@ public class FunctionType extends Function {
         String o = par[0];
 
         if(o == null || o.equals(""))
-            return "null";
+            return "'null'";
 
         if(o.startsWith("'"))
-            return "string";
+            return "'string'";
 
         if(o.startsWith("{"))
-            return "json";
+            return "'json'";
 
         if(o.startsWith("["))
-            return "array";
+            return "'array'";
 
         if(QLVM.OBJECT_NUMBER.matcher(o).find())
-            return "number";
+            return "'number'";
 
-        return "unknown";
+        return "'unknown'";
     }
 }
