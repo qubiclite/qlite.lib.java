@@ -455,7 +455,7 @@ public class QLVM {
             String index = normalizeValueExpression(getSubstructureContent(splits[i]));
             if(index.startsWith("\'")) {
                 JSONObject o = (JSONObject)(parent);
-                if(!o.has(unescapeString(index))) return null;
+                if(o == null || !o.has(unescapeString(index))) return null;
                 parent = o.get(unescapeString(index));
             } else {
                 int indexInt = Integer.parseInt(index);
