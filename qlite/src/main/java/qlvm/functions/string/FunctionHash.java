@@ -3,6 +3,7 @@ package qlvm.functions.string;
 import qlvm.QLVM;
 import qlvm.functions.Function;
 
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
@@ -34,11 +35,9 @@ public class FunctionHash extends Function {
     }
 
     private static String convertBytesToHexString(byte[] bytes) {
-        StringBuilder hexBuffer = new StringBuilder();
-        for (byte b : bytes) {
-            String hex = Integer.toHexString(0xff & b);
-            hexBuffer.append(hex.length() == 1 ? 0 : hex);
-        }
-        return hexBuffer.toString();
+        StringBuilder result = new StringBuilder();
+        for (byte b : bytes)
+            result.append(String.format("%02x", b));
+        return result.toString();
     }
 }
