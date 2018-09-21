@@ -80,6 +80,9 @@ public enum  TryteTool {
      * */
     public static byte[] trytesToBytes(String tryteString) {
 
+        if(tryteString == null)
+            return null;
+
         tryteString = tryteString.split("9")[0];
         char[] trytes = tryteString.toCharArray();
 
