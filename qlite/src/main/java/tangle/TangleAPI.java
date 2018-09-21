@@ -25,7 +25,7 @@ import java.util.Map;
  * */
 public class TangleAPI {
 
-    private static TangleAPI instance = new TangleAPI(new NodeAddress("https://nodes.devnet.iota.org:443"), 9, true);
+    private static TangleAPI instance = new TangleAPI(new NodeAddress("https://nodes.devnet.thetangle.org:443"), 9, true);
 
     private static final String TAG = "QLITE9999999999999999999999";
 
@@ -156,7 +156,8 @@ public class TangleAPI {
     }
 
     public String readTransactionMessage(String hash) {
-        return TrytesConverter.toString(readTransactionTrytes(hash));
+        String transactionTrytes = readTransactionTrytes(hash);
+        return transactionTrytes != null ? TrytesConverter.toString(transactionTrytes) : null;
     }
 
     /**
@@ -187,7 +188,7 @@ public class TangleAPI {
         }
 
         // transaction not found
-        if(transactions.get(0).getHash().equals("999999999999999999999999999999999999999999999999999999999999999999999999999999999"))
+        if(transactions.size() == 0 || transactions.get(0).getHash().equals("999999999999999999999999999999999999999999999999999999999999999999999999999999999"))
             return null;
 
         String trytes = transactions.get(0).getSignatureFragments();
